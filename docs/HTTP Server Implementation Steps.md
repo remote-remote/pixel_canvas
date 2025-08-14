@@ -1,5 +1,3 @@
-# HTTP Server Implementation Steps
-
 ## Overview
 
 Building a robust HTTP server from scratch using pure Elixir and OTP, without external libraries like Plug or Phoenix. This approach will give us deep understanding of HTTP protocol handling and TCP socket programming.
@@ -11,7 +9,7 @@ Building a robust HTTP server from scratch using pure Elixir and OTP, without ex
 1. **Create the GenServer structure**
    - `PixelCanvas.Http.Server` as a GenServer
    - Accept port configuration in `start_link/1`
-   - Initialize with `:gen_tcp.listen/2`
+   - Initialize with `:gen_tcp.listen/3`
 
 2. **Implement connection acceptance**
    - Use `:gen_tcp.accept/1` in a loop
@@ -74,16 +72,19 @@ Building a robust HTTP server from scratch using pure Elixir and OTP, without ex
 ## Key Technical Decisions
 
 ### Socket Configuration
+
 - Use `[:binary, packet: :raw, active: false]` for explicit control
 - Handle backlog size for connection queuing
 - Configure socket options for performance
 
 ### Process Architecture
+
 - One supervisor for the listener process
 - Dynamic supervisor for connection processes
 - Connection processes should be temporary and isolated
 
 ### HTTP Compliance
+
 - Implement minimal HTTP/1.1 compliance
 - Support essential headers
 - Handle Connection: close/keep-alive
@@ -92,18 +93,21 @@ Building a robust HTTP server from scratch using pure Elixir and OTP, without ex
 ## Testing Strategy
 
 ### Unit Tests
+
 - HTTP parsing functions
 - Response generation
 - Error conditions
 - State management
 
-### Integration Tests  
+### Integration Tests
+
 - Real TCP socket connections
 - Concurrent request handling
 - Server lifecycle (start/stop)
 - Resource cleanup verification
 
 ### Manual Testing
+
 - Use `curl` for various request types
 - Test with browser requests
 - Load testing with simple scripts
@@ -114,7 +118,7 @@ Building a robust HTTP server from scratch using pure Elixir and OTP, without ex
 - **TCP Socket Programming**: Raw socket handling in Elixir
 - **HTTP Protocol**: Deep understanding of request/response cycle
 - **OTP Design**: GenServer patterns for network services
-- **Process Management**: Supervisor trees for fault tolerance  
+- **Process Management**: Supervisor trees for fault tolerance
 - **Binary Pattern Matching**: Efficient parsing of network protocols
 - **Resource Management**: Connection limits and cleanup
 
@@ -130,9 +134,10 @@ Building a robust HTTP server from scratch using pure Elixir and OTP, without ex
 
 - [ ] Server starts and accepts connections on specified port
 - [ ] Handles basic GET/POST requests correctly
-- [ ] Returns appropriate status codes and headers  
+- [ ] Returns appropriate status codes and headers
 - [ ] Gracefully handles malformed requests
 - [ ] Supports concurrent connections
 - [ ] Can be started/stopped cleanly
 - [ ] All tests pass consistently
 - [ ] No resource leaks during normal operation
+
