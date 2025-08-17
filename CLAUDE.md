@@ -56,6 +56,7 @@ The `docs/` directory is structured as an Obsidian vault for rich linking and vi
 - **decisions/\*.md**: ADR-style records of architectural choices and rationale
 - **learnings/\*.md**: Key insights, gotchas, and "aha moments" from implementation
 - **architecture/\*.md**: System diagrams, process flows, and design documents
+- **claude-feedback/\*.md**: Critical reviews and architectural feedback from Claude
 
 ## Current Phase Tracking
 
