@@ -1,18 +1,12 @@
 defmodule PixelCanvas do
+  use Application
+
   @moduledoc """
   Documentation for `PixelCanvas`.
   """
 
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> PixelCanvas.hello()
-      :world
-
-  """
-  def hello do
-    :world
+  @impl true
+  def start(_type, _args) do
+    PixelCanvas.Supervisor.start_link(name: PixelCanvas.Supervisor)
   end
 end

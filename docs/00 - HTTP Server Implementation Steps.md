@@ -132,12 +132,11 @@ Building a robust HTTP server from scratch using pure Elixir and OTP, without ex
 
 ## Success Criteria
 
-- [ ] Server starts and accepts connections on specified port
-- [ ] Handles basic GET/POST requests correctly
-- [ ] Returns appropriate status codes and headers
-- [ ] Gracefully handles malformed requests
-- [ ] Supports concurrent connections
-- [ ] Can be started/stopped cleanly
-- [ ] All tests pass consistently
-- [ ] No resource leaks during normal operation
-
+- [x] Server starts and accepts connections on specified port
+- [x] Handles basic GET/POST requests correctly
+- [x] Returns appropriate status codes and headers
+- [x] Gracefully handles malformed requests
+- [x] Supports concurrent connections
+- [x] Can be started/stopped cleanly
+- [x] All tests pass consistently
+- [x] No resource leaks during normal operation

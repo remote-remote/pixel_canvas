@@ -1,37 +1,33 @@
 defmodule PixelCanvas.Http.ServerTest do
   use ExUnit.Case, async: true
   alias PixelCanvas.Http.Server
+  import PixelCanvas.TestHelper
 
-  @moduletag capture_log: true
+  @moduletag :capture_log
 
   describe "start_link/1" do
+    setup do
+      Application.stop(:pixel_canvas)
+      :ok
+    end
+
     test "starts the HTTP server on the specified port" do
       port = 4001
       assert {:ok, pid} = Server.start_link(port: port)
       assert Process.alive?(pid)
-      GenServer.stop(pid)
     end
 
     test "returns error when port is already in use" do
       port = 4002
       assert {:ok, pid1} = Server.start_link(port: port)
-      assert {:error, :eaddrinuse} = Server.start_link(port: port)
-      GenServer.stop(pid1)
+      assert {:error, {:already_started, pid1}} = Server.start_link(port: port)
     end
   end
 
   describe "HTTP request handling" do
     setup do
-      port = :rand.uniform(1000) + 5000
-      {:ok, server_pid} = Server.start_link(port: port)
-
-      # this seems to work as expected when running the describe block
-      # but when running a single test, the process is already dead
-      on_exit(fn ->
-        if Process.alive?(server_pid), do: GenServer.stop(server_pid)
-      end)
-
-      %{port: port, server_pid: server_pid}
+      wait_for_server_ready()
+      %{port: 3000}
     end
 
     test "handles GET request to root path", %{port: port} do
@@ -88,8 +84,8 @@ defmodule PixelCanvas.Http.ServerTest do
 
   describe "server state management" do
     setup do
-      port = :rand.uniform(1000) + 6000
-      {:ok, server_pid} = Server.start_link(port: port)
+      port = 3000
+      server_pid = wait_for_server_ready()
 
       # Establish a few connections to ensure connection count > 0
       sockets =
@@ -120,37 +116,5 @@ defmodule PixelCanvas.Http.ServerTest do
       assert :ok = GenServer.stop(server_pid)
       refute Process.alive?(server_pid)
     end
-  end
-
-  # Helper function to make raw HTTP requests
-  defp make_http_request(port, method, path, body) do
-    content_length = byte_size(body)
-
-    request =
-      """
-      #{method} #{path} HTTP/1.1\r
-      Host: localhost:#{port}\r
-      Content-Length: #{content_length}\r
-      Connection: close\r
-      \r
-      #{body}
-      """
-
-    {:ok, socket} =
-      :gen_tcp.connect(~c"localhost", port, [:binary, active: false])
-
-    :ok = :gen_tcp.send(socket, request)
-
-    response =
-      case :gen_tcp.recv(socket, 0) do
-        {:ok, response} ->
-          response
-
-        {:error, reason} ->
-          {:error, reason}
-      end
-
-    :gen_tcp.close(socket)
-    response
   end
 end
