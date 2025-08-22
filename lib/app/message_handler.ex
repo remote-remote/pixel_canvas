@@ -22,10 +22,7 @@ defmodule PixelCanvas.WebSocket.MessageHandler do
 
         Logger.info(point)
 
-        # PixelCanvas.Board.set_pixel(point)
-        # PixelCanvas.Broadcaster.broadcast(point)
-
-        {:reply, message, state}
+        {:broadcast, message, state}
 
       _ ->
         :ok

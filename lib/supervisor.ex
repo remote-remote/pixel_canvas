@@ -7,6 +7,7 @@ defmodule PixelCanvas.Supervisor do
 
   def init(:ok) do
     children = [
+      {PixelCanvas.WebSocket.Broadcaster, []},
       {DynamicSupervisor, strategy: :one_for_one, name: PixelCanvas.Http.ConnectionSupervisor},
       {PixelCanvas.Http.Server, [name: PixelCanvas.Http.Server]}
     ]

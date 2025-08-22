@@ -12,7 +12,7 @@ defmodule PixelCanvas.WebSocket.Connection do
         GenServer.start_link(__MODULE__, %{socket: socket, state: state}, opts)
       end
 
-      defoverridable start_link: 2
+      defoverridable start_link: 3
 
       # Server API
       def init(%{socket: socket, state: state}) do
@@ -30,6 +30,11 @@ defmodule PixelCanvas.WebSocket.Connection do
 
       def handle_call({:handle_recv, data}, _from, state) do
         handle_data(state.frame_buffer <> data, state)
+      end
+
+      def handle_info({:broadcast_message, message}, state) do
+        send_message(state.socket, message)
+        {:noreply, state}
       end
 
       # This runs outside of the Handler process in its own task
@@ -57,6 +62,10 @@ defmodule PixelCanvas.WebSocket.Connection do
         case handle_message(full_message, Map.get(state, :state)) do
           {:reply, message, new_state} ->
             send_message(state.socket, message)
+            {:ok, Map.put(state, :state, new_state)}
+
+          {:broadcast, message, new_state} ->
+            PixelCanvas.WebSocket.Broadcaster.broadcast(message)
             {:ok, Map.put(state, :state, new_state)}
 
           :ok ->
