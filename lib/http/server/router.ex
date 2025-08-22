@@ -1,5 +1,6 @@
 defmodule PixelCanvas.Http.Router do
   alias PixelCanvas.Http.{Request, Response}
+  alias PixelCanvas.WebSocket
 
   def route(%Request{} = request) do
     route(
@@ -7,6 +8,10 @@ defmodule PixelCanvas.Http.Router do
       String.split(request.full_path, "/") |> Enum.reject(&(&1 == "")),
       request
     )
+  end
+
+  def route(:GET, ["ws"], %Request{} = request) do
+    WebSocket.Handshake.handle_upgrade(request)
   end
 
   def route(:GET, [], %Request{} = _request) do

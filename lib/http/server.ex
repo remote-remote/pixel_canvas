@@ -13,7 +13,8 @@ defmodule PixelCanvas.Http.Server do
 
     case :gen_tcp.listen(port, [:binary, active: false, packet: :http_bin, reuseaddr: true]) do
       {:ok, socket} ->
-        {:ok, accept_loop} = Task.start_link(__MODULE__, :accept_loop, [socket, self()])
+        {:ok, accept_loop} =
+          Task.start_link(__MODULE__, :accept_loop, [socket, self()])
 
         {:ok,
          %{
@@ -51,6 +52,17 @@ defmodule PixelCanvas.Http.Server do
 
   def handle_call(:get_connection_count, _from, state) do
     {:reply, Kernel.map_size(state.refs), state}
+  end
+
+  def handle_call(:get_status, _from, state) do
+    reply = %{
+      port: state.port,
+      socket: state.socket,
+      connections: Kernel.map_size(state.refs),
+      started_at: state.started_at
+    }
+
+    {:reply, reply, state}
   end
 
   def handle_cast({:accept, client}, state) do

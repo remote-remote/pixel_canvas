@@ -1,11 +1,17 @@
 defmodule PixelCanvas.Http.Response do
   alias PixelCanvas.Http.Request
+  require Logger
 
   defstruct version: "HTTP/1.1",
             status_code: 200,
             status_message: "OK",
             headers: %{},
             body: ""
+
+  # maybe this should be more specific
+  def prepare(%__MODULE__{status_code: 101} = response, _request) do
+    response
+  end
 
   def prepare(%__MODULE__{} = response, %Request{} = request) do
     body = response.body || ""
@@ -43,11 +49,22 @@ defmodule PixelCanvas.Http.Response do
       end)
       |> Enum.join("\r\n")
 
-    """
-    #{response.version} #{response.status_code} #{response.status_message}\r
-    #{headers}\r
-    \r
-    #{response.body}\r
-    """
+    serialized =
+      "#{response.version} #{response.status_code} #{response.status_message}\r\n" <>
+        headers <> "\r\n\r\n"
+
+    case response.body do
+      "" ->
+        Logger.debug("empty body")
+        serialized <> ""
+
+      nil ->
+        Logger.debug("nil body")
+        serialized <> ""
+
+      _ ->
+        Logger.debug("non-empty body")
+        serialized <> "#{response.body}\r\n"
+    end
   end
 end

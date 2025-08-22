@@ -1,11 +1,11 @@
 defmodule PixelCanvas.Http.Request do
   require Logger
 
-  defstruct full_path: nil, headers: %{}, body: nil, method: nil
+  defstruct version: nil, full_path: nil, headers: %{}, body: nil, method: nil
 
-  def parse(client) do
+  def parse(client) when is_port(client) do
     with {:ok, start_line} <- :gen_tcp.recv(client, 0),
-         {:http_request, method, {:abs_path, full_path}, _} <- start_line,
+         {:http_request, method, {:abs_path, full_path}, version} <- start_line,
          {:ok, headers} <- get_headers(client),
          _ <- :inet.setopts(client, packet: :raw),
          {:ok, body} <-
@@ -15,6 +15,7 @@ defmodule PixelCanvas.Http.Request do
       {:ok,
        %__MODULE__{
          method: method,
+         version: version,
          full_path: full_path,
          headers: headers,
          body: body
