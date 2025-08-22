@@ -1,7 +1,44 @@
 defmodule PixelCanvas.WebSocket.Frame do
   import Bitwise
 
+  # opcodes
+  # @cont 0
+  # @text 1
+  @binary 2
+
   defstruct [:fin, :rsv, :opcode, :mask, :masking_key, :payload_len, :payload]
+
+  def construct(message, frames \\ []) when is_binary(message) do
+    size = byte_size(message)
+
+    cond do
+      size < 126 ->
+        [<<1::1, 0::3, @binary::4, 0::1, size::integer-7, message::binary-size(size)>> | frames]
+
+      size < Integer.pow(2, 16) ->
+        [
+          <<1::1, 0::3, @binary::4, 0::1, 126::integer-7, size::unsigned-16,
+            message::binary-size(size)>>
+          | frames
+        ]
+
+      size < Integer.pow(2, 64) ->
+        [
+          <<1::1, 0::3, @binary::4, 0::1, 127::integer-7, size::unsigned-64,
+            message::binary-size(size)>>
+          | frames
+        ]
+
+      true ->
+        <<size::unsigned-64>> = <<255, 255, 255, 255, 255, 255, 255, 255>>
+        <<chunk::binary-size(size), rest::binary>> = message
+
+        construct(rest, [
+          <<0::1, 0::3, @binary::4, 0::1, 127::integer-7>> <> <<size::unsigned-64>> <> chunk
+          | frames
+        ])
+    end
+  end
 
   def parse(data) when is_binary(data) do
     with <<fin::1, rsv::3, opcode::4, mask::1, payload_len::integer-7, rest::binary>> <- data,

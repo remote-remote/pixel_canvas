@@ -64,6 +64,8 @@ defmodule PixelCanvas.Http.ConnectionHandler do
                 Logger.error("Could not start websocket handler: #{inspect(reason)}")
                 {:stop, :normal}
             end
+          else
+            {:noreply, state, {:continue, :handle_request}}
           end
         else
           :gen_tcp.close(conn)

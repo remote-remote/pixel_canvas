@@ -15,11 +15,54 @@ defmodule PixelCanvas.Http.Router do
   end
 
   def route(:GET, [], %Request{} = _request) do
-    %Response{
-      status_code: 200,
-      status_message: "OK",
-      body: "PixelCanvas Server"
-    }
+    case File.read("./assets/index.html") do
+      {:ok, file} ->
+        %Response{
+          status_code: 200,
+          status_message: "OK",
+          body: file,
+          headers: %{
+            "Content-Type" => "text/html"
+          }
+        }
+
+      {:error, _reason} ->
+        %Response{
+          status_code: 404,
+          status_message: "Not found",
+          body: "Not Found"
+        }
+    end
+  end
+
+  def route(:GET, ["assets" | asset_path], %Request{} = _request) do
+    path = Path.join(["./assets" | asset_path])
+
+    case File.read(path) do
+      {:ok, file} ->
+        %Response{
+          status_code: 200,
+          status_message: "OK",
+          body: file,
+          headers: %{
+            "Content-Type" => get_content_type(asset_path)
+          }
+        }
+
+      {:error, :enoent} ->
+        %Response{
+          status_code: 404,
+          status_message: "Not found",
+          body: "Not Found"
+        }
+
+      {:error, _} ->
+        %Response{
+          status_code: 500,
+          status_message: "Internal Server Error",
+          body: "Internal Server Error"
+        }
+    end
   end
 
   def route(:POST, ["api", "pixels"], %Request{} = _request) do
@@ -37,5 +80,17 @@ defmodule PixelCanvas.Http.Router do
       status_message: "Not Found",
       body: "Not Found"
     }
+  end
+
+  defp get_content_type(path) do
+    case Path.extname(path) do
+      ".js" -> "application/javascript"
+      ".html" -> "text/html"
+      ".css" -> "text/css"
+      ".webp" -> "image/webp"
+      ".jpg" -> "image/jpeg"
+      ".jpeg" -> "image/jpeg"
+      _ -> "text/any"
+    end
   end
 end

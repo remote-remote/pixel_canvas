@@ -82,7 +82,7 @@ defmodule PixelCanvas.WebSocket.Handler do
   defp handle_frame(%Frame{fin: 1} = frame, state) do
     full_message = state.message_buffer <> frame.payload
     Logger.info("Completed a message: #{inspect(full_message)}")
-    # TODO: pass it to our business logic
+    send_message("Hello from server", state)
 
     {:ok, Map.put(state, :message_buffer, <<>>)}
   end
@@ -90,5 +90,9 @@ defmodule PixelCanvas.WebSocket.Handler do
   defp handle_frame(%Frame{} = frame, state) do
     IO.puts("We got some unmatching frame: #{inspect(frame)}")
     {:ok, state}
+  end
+
+  def send_message(msg, %{socket: socket}) do
+    :gen_tcp.send(socket, Frame.construct(msg))
   end
 end

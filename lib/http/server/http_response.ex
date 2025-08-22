@@ -25,7 +25,8 @@ defmodule PixelCanvas.Http.Response do
   end
 
   defp get_encoding_headers(headers) do
-    supported_encodings = ["gzip"]
+    # ["gzip"]
+    supported_encodings = []
 
     with encodings when is_list(encodings) <- get_encoding_header(headers),
          [encoding | _] <- Enum.filter(encodings, &(&1 in supported_encodings)) do
@@ -55,16 +56,13 @@ defmodule PixelCanvas.Http.Response do
 
     case response.body do
       "" ->
-        Logger.debug("empty body")
         serialized <> ""
 
       nil ->
-        Logger.debug("nil body")
         serialized <> ""
 
       _ ->
-        Logger.debug("non-empty body")
-        serialized <> "#{response.body}\r\n"
+        serialized <> "#{response.body}"
     end
   end
 end
