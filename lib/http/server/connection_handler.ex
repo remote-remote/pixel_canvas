@@ -56,7 +56,7 @@ defmodule PixelCanvas.Http.ConnectionHandler do
 
         if keep_alive?(response) do
           if is_websocket_upgrade?(response) do
-            case PixelCanvas.WebSocket.Handler.start_link(conn) do
+            case PixelCanvas.WebSocket.MessageHandler.start_link(conn, %{}) do
               {:ok, _handler} ->
                 {:noreply, Map.put(state, :protocol, :websocket)}
 
