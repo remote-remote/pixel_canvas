@@ -68,9 +68,6 @@ defmodule Infra.TcpConnection do
         else
           {:noreply, state}
         end
-
-      unknown ->
-        {:noreply, state}
     end
   end
 

@@ -1,5 +1,6 @@
 defmodule Infra.WebSocket.Frame do
   import Bitwise
+  require Logger
 
   # opcodes
   # @cont 0
@@ -8,12 +9,55 @@ defmodule Infra.WebSocket.Frame do
 
   defstruct [:fin, :rsv, :opcode, :mask, :masking_key, :payload_len, :payload]
 
-  def construct(message, frames \\ []) when is_binary(message) do
+  def construct_masked(message, masking_key, frames \\ []) do
     size = byte_size(message)
 
     cond do
       size < 126 ->
-        [<<1::1, 0::3, @binary::4, 0::1, size::integer-7, message::binary-size(size)>> | frames]
+        [
+          <<1::1, 0::3, @binary::4, 1::1, size::integer-7, masking_key::binary-4,
+            message::binary-size(size)>>
+          | frames
+        ]
+
+      size < Integer.pow(2, 16) ->
+        [
+          <<1::1, 0::3, @binary::4, 1::1, 126::integer-7, size::unsigned-16,
+            masking_key::binary-4, message::binary-size(size)>>
+          | frames
+        ]
+
+      size < Integer.pow(2, 64) ->
+        [
+          <<1::1, 0::3, @binary::4, 1::1, 127::integer-7, size::unsigned-64,
+            masking_key::binary-4, message::binary-size(size)>>
+          | frames
+        ]
+
+      true ->
+        Logger.info("Splitting message into fragments")
+        <<size::unsigned-64>> = <<255, 255, 255, 255, 255, 255, 255, 255>>
+        <<chunk::binary-size(size), rest::binary>> = message
+
+        # frames are out of order
+        construct_masked(rest, masking_key, [
+          <<0::1, 0::3, @binary::4, 1::1, 127::integer-7>> <>
+            <<size::unsigned-64, masking_key::binary-4>> <> chunk
+          | frames
+        ])
+    end
+    |> Enum.reverse()
+  end
+
+  def construct(message, frames \\ []) do
+    size = byte_size(message)
+
+    cond do
+      size < 126 ->
+        [
+          <<1::1, 0::3, @binary::4, 0::1, size::integer-7, message::binary-size(size)>>
+          | frames
+        ]
 
       size < Integer.pow(2, 16) ->
         [
@@ -30,6 +74,7 @@ defmodule Infra.WebSocket.Frame do
         ]
 
       true ->
+        Logger.info("Splitting message into fragments")
         <<size::unsigned-64>> = <<255, 255, 255, 255, 255, 255, 255, 255>>
         <<chunk::binary-size(size), rest::binary>> = message
 
@@ -38,6 +83,7 @@ defmodule Infra.WebSocket.Frame do
           | frames
         ])
     end
+    |> Enum.reverse()
   end
 
   def parse(data) when is_binary(data) do
@@ -60,6 +106,48 @@ defmodule Infra.WebSocket.Frame do
         {:error, :nomask}
 
       _ ->
+        :fragment
+    end
+  end
+
+  def parse_no_mask(data) when is_binary(data) do
+    with <<fin::1, rsv::3, opcode::4, mask::1, payload_len::integer-7, rest::binary>> <- data,
+         {0, :mask} <- {mask, :mask},
+         {payload_len, rest} <- extract_payload_len(payload_len, rest),
+         <<payload::binary-size(payload_len), rest::binary>> <- rest do
+      {%__MODULE__{
+         fin: fin,
+         rsv: rsv,
+         opcode: opcode,
+         mask: mask,
+         payload_len: payload_len,
+         payload: payload
+       }, rest}
+    else
+      {0, :mask} ->
+        {:error, :nomask}
+
+      _ ->
+        :fragment
+    end
+  end
+
+  def extract_payload_len(payload_len, rest) do
+    data_size = byte_size(rest)
+
+    cond do
+      payload_len < 126 && data_size >= 0 ->
+        {payload_len, rest}
+
+      payload_len == 126 && data_size >= 2 ->
+        <<payload_len::unsigned-16, rest::binary>> = rest
+        {payload_len, rest}
+
+      payload_len == 127 && data_size >= 8 ->
+        <<payload_len::unsigned-64, rest::binary>> = rest
+        {payload_len, rest}
+
+      true ->
         :fragment
     end
   end

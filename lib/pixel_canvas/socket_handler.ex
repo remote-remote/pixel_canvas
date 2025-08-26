@@ -16,7 +16,8 @@ defmodule PixelCanvas.WebSocket.SocketHandler do
 
         {:reply, message, state}
 
-      _ ->
+      message ->
+        IO.inspect(message, label: "Unknown message in socket handler")
         :ok
     end
   end

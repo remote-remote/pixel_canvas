@@ -3,23 +3,60 @@
     <script type="module" src="/assets/js/app.js"></script>
   </head>
   <body>
-    <h1>PixelCanvas</h1>
-    <select id="color-select">
-      <option value="000">Black</option>
-      <option value="f00">Red</option>
-      <option value="0f0">Green</option>
-      <option value="ff0">Yellow</option>
-      <option value="00f">Blue</option>
-      <option value="f0f">Magenta</option>
-      <option value="0ff">Cyan</option>
-      <option value="fff">White</option>
-    </select>
-    <canvas id="pixcan" height="1024" width="1024"></canvas>
+    <div id="container">
+      <h1>PixelCanvas</h1>
+      <div id="controls">
+        <select id="color-select">
+          <option value="000">Black</option>
+          <option value="f00">Red</option>
+          <option value="0f0">Green</option>
+          <option value="ff0">Yellow</option>
+          <option value="00f">Blue</option>
+          <option value="f0f">Magenta</option>
+          <option value="0ff">Cyan</option>
+          <option value="fff">White</option>
+        </select>
+      </div>
+      <div id="canvas-container">
+        <canvas id="pixcan" height="1024" width="1024"></canvas>
+      </div>
+    <div>
   </body>
 
 <style>
+#container {
+  display: flex;
+  flex-direction: column;
+}
+
+#canvas-container {
+  flex: 1;
+  text-align: center;
+}
+
+#controls {
+  margin-bottom: 10px;
+}
+
+h1 {
+  font-family: sans-serif;
+  color: #dddddd;
+}
+
+body {
+  background-color: #222222;
+}
+
 #pixcan {
   border: 1px solid black;
+  cursor: crosshair;
 }
+
+select {
+  font-family: sans-serif;
+  background-color: #333333;
+  color: #dddddd;
+}
+
 </style>
 </html>
