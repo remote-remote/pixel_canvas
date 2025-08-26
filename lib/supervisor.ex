@@ -14,7 +14,11 @@ defmodule PixelCanvas.Supervisor do
     children = [
       {Infra.WebSocket.Broadcaster, []},
       {DynamicSupervisor, name: Infra.ConnectionSupervisor},
-      {Infra.TcpListener, name: Infra.TcpListener}
+      {Infra.TcpListener,
+       http_handler: {Infra.Http.Router, :route},
+       websocket_handler: PixelCanvas.WebSocket.SocketHandler},
+      {PixelCanvas.PixelBatcher, []},
+      {PixelCanvas.PixelStore, []}
     ]
 
     # So the default strategy is :one_for_one, which we can override in each child spec

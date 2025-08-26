@@ -4,12 +4,22 @@
   </head>
   <body>
     <h1>PixelCanvas</h1>
+    <select id="color-select">
+      <option value="000">Black</option>
+      <option value="f00">Red</option>
+      <option value="0f0">Green</option>
+      <option value="ff0">Yellow</option>
+      <option value="00f">Blue</option>
+      <option value="f0f">Magenta</option>
+      <option value="0ff">Cyan</option>
+      <option value="fff">White</option>
+    </select>
     <canvas id="pixcan" height="1024" width="1024"></canvas>
   </body>
 
-<style type="css">
+<style>
 #pixcan {
-  border: 1px black;
+  border: 1px solid black;
 }
 </style>
 </html>

@@ -16,8 +16,6 @@ defmodule Infra.TcpConnection do
   ]
 
   def start_link(state, opts \\ []) do
-    IO.inspect(state, label: "tcp_connection state")
-    IO.inspect(opts, label: "tcp_connection opts")
     GenServer.start_link(__MODULE__, state, opts)
   end
 
@@ -26,10 +24,7 @@ defmodule Infra.TcpConnection do
         http_handler: http_handler,
         websocket_handler: websocket_handler
       }) do
-    Logger.debug("Starting tcp connection")
     {:ok, listener} = Task.start_link(__MODULE__, :recv_loop, [conn, self()])
-
-    Logger.debug("Starting tcp connection")
 
     {:ok,
      %__MODULE__{
@@ -50,22 +45,20 @@ defmodule Infra.TcpConnection do
         recv_loop(socket, handler)
 
       {:error, :closed} ->
-        raise "Connection closed"
+        GenServer.cast(handler, :connection_closed)
 
       {:error, reason} ->
         Logger.error("Error receiving data: #{inspect(reason)}")
-        raise "Unknown data receive error"
+        GenServer.cast(handler, {:receive_error, reason})
     end
   end
 
   def handle_websocket(data, state) do
     case Frame.parse(data) do
       :fragment ->
-        IO.puts("got fragment, noreplying")
         {:reply, :fragment, Map.put(state, :buffer, data)}
 
       {%Frame{} = frame, rest} ->
-        Logger.info("Got frame: #{inspect(frame)}")
         state = Map.put(state, :buffer, <<>>)
 
         GenServer.cast(state.websocket_connection, {:frame, frame})
@@ -77,7 +70,6 @@ defmodule Infra.TcpConnection do
         end
 
       unknown ->
-        IO.puts("unknown frame: #{inspect(unknown)}")
         {:noreply, state}
     end
   end
@@ -91,9 +83,8 @@ defmodule Infra.TcpConnection do
         # TODO: Handle errors
         {handler_module, handler_function} = state.http_handler
 
-        # this can be done in a Task
+        # CAN this be done in a Task?
         response = apply(handler_module, handler_function, [request])
-        Logger.debug("Sending response: #{inspect(response)}")
 
         :gen_tcp.send(
           state.conn,
@@ -154,8 +145,6 @@ defmodule Infra.TcpConnection do
         {:handle_packet, data},
         %__MODULE__{} = state
       ) do
-    Logger.debug("handle_cast called with data: #{inspect(data)}")
-
     case state.protocol do
       :http ->
         handle_http(data, state)
@@ -163,6 +152,16 @@ defmodule Infra.TcpConnection do
       :websocket ->
         handle_websocket(data, state)
     end
+  end
+
+  def handle_cast({:receive_error, reason}, state) do
+    Logger.error("Error receiving data: #{inspect(reason)}")
+    {:stop, :normal, state}
+  end
+
+  def handle_cast(:connection_closed, state) do
+    Logger.debug("Closing connection")
+    {:stop, :normal, state}
   end
 
   defp is_websocket_upgrade?(%Response{status_code: 101, headers: %{"Upgrade" => "websocket"}}),

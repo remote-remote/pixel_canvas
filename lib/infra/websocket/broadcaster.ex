@@ -22,6 +22,7 @@ defmodule Infra.WebSocket.Broadcaster do
   end
 
   def handle_call({:register, pid}, _from, state) do
+    Process.monitor(pid)
     {:reply, :ok, Map.put(state, pid, pid)}
   end
 
@@ -35,5 +36,9 @@ defmodule Infra.WebSocket.Broadcaster do
     end
 
     {:noreply, state}
+  end
+
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
+    {:noreply, Map.delete(state, pid)}
   end
 end

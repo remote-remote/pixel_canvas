@@ -1,7 +1,7 @@
-defmodule PixelCanvas.WebSocket.HandshakeTest do
+defmodule Infra.WebSocket.HandshakeTest do
   use ExUnit.Case
-  alias PixelCanvas.Http.{Response, Request}
-  alias PixelCanvas.WebSocket
+  alias Infra.Http.{Response, Request}
+  alias Infra.WebSocket
 
   # Note: This test file covers the WebSocket handshake implementation
   # that will be built as part of Phase 2 of the project.
@@ -54,7 +54,7 @@ defmodule PixelCanvas.WebSocket.HandshakeTest do
         "sec-websocket-key" => "x3JJHMbDL1EzLkh9GBhXDw=="
       }
 
-      assert :ok = WebSocket.Handshake.validate_headers(valid_headers)
+      assert {:ok, _valid_headers} = WebSocket.Handshake.validate_headers(valid_headers)
     end
 
     test "rejects request missing Connection header" do
@@ -129,7 +129,7 @@ defmodule PixelCanvas.WebSocket.HandshakeTest do
         "SEC-WEBSOCKET-KEY" => "x3JJHMbDL1EzLkh9GBhXDw=="
       }
 
-      assert :ok = WebSocket.Handshake.validate_headers(headers)
+      assert {:ok, valid_headers} = WebSocket.Handshake.validate_headers(headers)
     end
   end
 
@@ -250,7 +250,7 @@ defmodule PixelCanvas.WebSocket.HandshakeTest do
 
       for {header, value} <- header_variations do
         headers = Map.put(base_headers, header, value)
-        assert :ok = WebSocket.Handshake.validate_headers(headers)
+        assert {:ok, _valid_headers} = WebSocket.Handshake.validate_headers(headers)
       end
     end
 
@@ -300,4 +300,3 @@ defmodule PixelCanvas.WebSocket.HandshakeTest do
     "GET #{path} HTTP/1.1\r\n#{header_lines}\r\n\r\n"
   end
 end
-

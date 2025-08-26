@@ -3,8 +3,8 @@ defmodule Infra.WebSocket.Handshake do
   require Logger
 
   def handle_upgrade(%Request{} = request) do
-    with :ok <- validate_headers(request.headers),
-         {:ok, accept_key} <- generate_accept_key(request.headers["sec-websocket-key"]) do
+    with {:ok, valid_headers} <- validate_headers(request.headers),
+         {:ok, accept_key} <- generate_accept_key(valid_headers["sec-websocket-key"]) do
       %Infra.Http.Response{
         status_code: 101,
         status_message: "Switching Protocols",
@@ -16,6 +16,8 @@ defmodule Infra.WebSocket.Handshake do
       }
     else
       {:error, reason} ->
+        Logger.error("Error validating headers: #{inspect(reason)}")
+
         %Response{
           status_code: 400,
           status_message: "Bad Request",
@@ -45,13 +47,15 @@ defmodule Infra.WebSocket.Handshake do
       end)
       |> Enum.into(%{})
 
-    with {:connection, "Upgrade"} <- {:connection, Map.get(headers, "connection")},
-         {:upgrade, "websocket"} <- {:upgrade, Map.get(headers, "upgrade")},
+    with {:connection, "upgrade"} <-
+           {:connection, Map.get(headers, "connection", "") |> String.downcase()},
+         {:upgrade, "websocket"} <-
+           {:upgrade, Map.get(headers, "upgrade", "") |> String.downcase()},
          {:sec_websocket_version, "13"} <-
            {:sec_websocket_version, Map.get(headers, "sec-websocket-version")},
          {:sec_websocket_key, client_key} when is_binary(client_key) <-
            {:sec_websocket_key, Map.get(headers, "sec-websocket-key")} do
-      :ok
+      {:ok, headers}
     else
       {:connection, nil} ->
         {:error, :missing_connection_header}

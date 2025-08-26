@@ -5,42 +5,18 @@ defmodule Infra.WebSocket.Connection do
 
   defstruct [:socket, :message_buffer, :state, :handler]
 
-  # Provide default start_link that users can override
   def start_link(%{socket: _, handler: _} = state, opts \\ []) do
     Logger.info("Starting websocket connection")
     GenServer.start_link(__MODULE__, state, opts)
   end
 
-  # Server API
-  def init(%{socket: socket, handler: handler}) do
-    {:ok,
-     %__MODULE__{
-       socket: socket,
-       handler: handler,
-       message_buffer: <<>>,
-       state: %{}
-     }}
-  end
-
-  def handle_info({:broadcast_message, message}, state) do
-    send_message(state.socket, message)
-    {:noreply, state}
-  end
-
-  def handle_cast({:frame, frame}, state) do
-    handle_frame(frame, state)
-    {:noreply, state}
-  end
-
+  # Client API
   defp handle_frame(%Frame{fin: 1} = frame, state) do
     full_message = state.message_buffer <> frame.payload
     state = Map.put(state, :message_buffer, <<>>)
 
-    {handler_module, handler_function} = state.handler
-
-    case apply(handler_module, handler_function, [full_message, Map.get(state, :state)]) do
+    case apply(state.handler, :handle_message, [full_message, Map.get(state, :state)]) do
       {:reply, message, new_state} ->
-        Logger.info("Sending message: #{inspect(message)}")
         send_message(state.socket, message)
         {:ok, Map.put(state, :state, new_state)}
 
@@ -65,5 +41,37 @@ defmodule Infra.WebSocket.Connection do
     |> Enum.each(fn frame ->
       :gen_tcp.send(socket, frame)
     end)
+  end
+
+  # Server API
+  def init(%{socket: socket, handler: handler}) do
+    {:ok,
+     %__MODULE__{
+       socket: socket,
+       handler: handler,
+       message_buffer: <<>>,
+       state: %{}
+     }, {:continue, :connected}}
+  end
+
+  def handle_continue(:connected, state) do
+    case apply(state.handler, :handle_connected, [state]) do
+      {:reply, message, new_state} ->
+        send_message(state.socket, message)
+        {:noreply, Map.put(state, :state, new_state)}
+
+      {:noreply, new_state} ->
+        {:noreply, Map.put(state, :state, new_state)}
+    end
+  end
+
+  def handle_info({:broadcast_message, message}, state) do
+    send_message(state.socket, message)
+    {:noreply, state}
+  end
+
+  def handle_cast({:frame, frame}, state) do
+    handle_frame(frame, state)
+    {:noreply, state}
   end
 end

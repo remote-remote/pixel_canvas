@@ -56,16 +56,9 @@ defmodule PixelCanvas.TestHelper do
     Application.stop(:pixel_canvas)
     Application.start(:pixel_canvas)
 
-    server_pid =
-      case Process.whereis(PixelCanvas.Http.Server) do
-        nil ->
-          # Wait for startup if needed
-          wait_for_process(PixelCanvas.Http.Server, 2000)
-
-        pid when is_pid(pid) ->
-          # Server exists, ensure it's responsive
-          pid
-      end
+    {_, server_pid, :worker, _} =
+      Supervisor.which_children(PixelCanvas.Supervisor)
+      |> Enum.find(fn {id, _, _, _} -> id == Infra.TcpListener end)
 
     # Verify server is actually accepting connections before test starts
     {:ok, socket} = :gen_tcp.connect(~c"localhost", 3000, [:binary, packet: :raw])

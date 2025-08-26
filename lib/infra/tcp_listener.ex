@@ -11,18 +11,22 @@ defmodule Infra.TcpListener do
   end
 
   def start_listening(opts) do
-    Logger.info("Starting Listener")
+    {:ok, pid} =
+      Task.start_link(__MODULE__, :setup_and_accept, [
+        opts
+      ])
+
+    {:ok, pid}
+  end
+
+  def setup_and_accept(opts) do
     port = Keyword.get(opts, :port, 3000)
+    Logger.info("Starting Listener")
 
     {:ok, socket} =
       :gen_tcp.listen(port, [:binary, active: false, packet: :raw, reuseaddr: true])
 
-    # TODO: move this configuration out to the application config
-    accept_loop(
-      socket,
-      {Infra.Http.Router, :route},
-      {PixelCanvas.WebSocket.MessageHandler, :handle_message}
-    )
+    accept_loop(socket, opts[:http_handler], opts[:websocket_handler])
   end
 
   def accept_loop(listen_socket, http_handler, websocket_handler) do
