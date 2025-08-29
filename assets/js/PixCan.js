@@ -1,6 +1,17 @@
 const KEY_ACCELERATION = 0.1
 const MAX_VELOCITY = 2
 
+function computePos(pos, velocity) {
+  const newPos = pos + velocity
+  if (newPos > 1023) {
+    return 1023
+  }
+  if (newPos < 0) {
+    return 0
+  }
+  return newPos
+}
+
 export class PixCan {
   constructor() {
     this.isDrawing = false
@@ -9,18 +20,12 @@ export class PixCan {
 
   loop() {
     for (const key in this.keys) {
-      if (this.keys[key].pressed) {
-        this.keys[key].action()
+      if (this.keys[key].down) {
+        this.keys[key].whileDown()
       }
     }
-    this.viewport.x += this.viewport.vx
-    this.viewport.y += this.viewport.vy
-    if (this.viewport.vx > MAX_VELOCITY) {
-      this.viewport.vx = MAX_VELOCITY
-    }
-    if (this.viewport.vy > MAX_VELOCITY) {
-      this.viewport.vy = MAX_VELOCITY
-    }
+    this.viewport.x = computePos(this.viewport.x, this.viewport.vx)
+    this.viewport.y = computePos(this.viewport.y, this.viewport.vy)
     this.context.clearRect(0, 0, this.viewport.width * this.viewport.scale, this.viewport.height * this.viewport.scale)
     const sliced = this.grid.slice(this.viewport.y, this.viewport.y + this.viewport.height).map((row) => {
       return row.slice(this.viewport.x, this.viewport.x + this.viewport.width)
@@ -62,6 +67,7 @@ export class PixCan {
           y: event.offsetY / this.viewport.scale + this.viewport.y
         }
         this.sendPoint()
+        this.grid[this.pen.y][this.pen.x] = this.color
       }
     })
 
@@ -75,20 +81,24 @@ export class PixCan {
 
     this.keys = {
       ArrowLeft: {
-        pressed: false,
-        action: () => this.viewport.vx += KEY_ACCELERATION
+        down: false,
+        whileDown: () => this.viewport.vx = Math.max(this.viewport.vx - KEY_ACCELERATION, -MAX_VELOCITY),
+        onUp: () => this.viewport.vx = 0
       },
       ArrowRight: {
-        pressed: false,
-        action: () => this.viewport.vx -= KEY_ACCELERATION
+        down: false,
+        whileDown: () => this.viewport.vx = Math.min(this.viewport.vx + KEY_ACCELERATION, MAX_VELOCITY),
+        onUp: () => this.viewport.vx = 0
       },
       ArrowUp: {
-        pressed: false,
-        action: () => this.viewport.vy -= KEY_ACCELERATION
+        down: false,
+        whileDown: () => this.viewport.vy = Math.max(this.viewport.vy - KEY_ACCELERATION, -MAX_VELOCITY),
+        onUp: () => this.viewport.vy = 0
       },
       ArrowDown: {
-        pressed: false,
-        action: () => this.viewport.vy += KEY_ACCELERATION
+        down: false,
+        whileDown: () => this.viewport.vy = Math.min(this.viewport.vy + KEY_ACCELERATION, MAX_VELOCITY),
+        onUp: () => this.viewport.vy = 0
       },
     }
 
@@ -96,14 +106,15 @@ export class PixCan {
       if (this.keys[event.key] == null) {
         return
       }
-      this.keys[event.key].pressed = true
+      this.keys[event.key].down = true
     }
 
-    document.onkeyup = event => {
+    document.onkeyup = (event) => {
       if (this.keys[event.key] == null) {
         return
       }
-      this.keys[event.key].pressed = false
+      this.keys[event.key].down = false
+      this.keys[event.key].onUp()
     }
 
     this.ws = new WebSocket("/ws")
@@ -125,7 +136,6 @@ export class PixCan {
 
       messages.forEach(message => {
         this.grid[message.localY][message.localX] = message.color
-        // this.drawPixel(message.localX, message.localY, message.color)
       })
     })
     this.loop()

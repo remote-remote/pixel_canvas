@@ -24,6 +24,9 @@ defmodule Infra.WebSocket.Connection do
         Infra.WebSocket.Broadcaster.broadcast(message)
         {:ok, Map.put(state, :state, new_state)}
 
+      {:noreply, new_state} ->
+        {:ok, Map.put(state, :state, new_state)}
+
       :ok ->
         {:ok, state}
     end

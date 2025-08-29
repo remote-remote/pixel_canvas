@@ -5,12 +5,12 @@ defmodule TestConnection do
   alias PixelCanvas.Pixel
   alias Infra.WebSocket.Frame
 
-  def start_link(id) do
-    GenServer.start_link(__MODULE__, :ok, name: String.to_atom("test_connection_#{id}"))
+  def start_link(host, port, id) do
+    GenServer.start_link(__MODULE__, {host, port}, name: String.to_atom("test_connection_#{id}"))
   end
 
-  def init(:ok) do
-    case :gen_tcp.connect(~c"localhost", 3000, [:binary, packet: :raw, active: false]) do
+  def init({host, port}) do
+    case :gen_tcp.connect(~c"#{host}", port, [:binary, packet: :raw, active: false]) do
       {:ok, socket} ->
         r = :rand.uniform(16) - 1
         g = :rand.uniform(16) - 1

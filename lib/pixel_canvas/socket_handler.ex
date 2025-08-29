@@ -14,7 +14,7 @@ defmodule PixelCanvas.WebSocket.SocketHandler do
         |> PixelCanvas.Pixel.parse_many()
         |> PixelCanvas.PixelStore.store_pixels()
 
-        {:reply, message, state}
+        {:noreply, state}
 
       message ->
         IO.inspect(message, label: "Unknown message in socket handler")

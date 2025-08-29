@@ -11,12 +11,14 @@
             "id": "e268abf225e77ac5",
             "type": "leaf",
             "state": {
-              "type": "excalidraw",
+              "type": "markdown",
               "state": {
-                "file": "Excalidraw/Drawing 2025-08-23 11.25.09.excalidraw.md"
+                "file": "decisions/canvas-storage-and-batching.md",
+                "mode": "source",
+                "source": false
               },
-              "icon": "excalidraw-icon",
-              "title": "Drawing 2025-08-23 11.25.09.excalidraw"
+              "icon": "lucide-file",
+              "title": "canvas-storage-and-batching"
             }
           }
         ]
@@ -168,8 +170,9 @@
       "obsidian-excalidraw-plugin:New drawing": false
     }
   },
-  "active": "663a4ef1a6e1c852",
+  "active": "e268abf225e77ac5",
   "lastOpenFiles": [
+    "claude-feedback/websocket-protocol-analysis.md",
     "Excalidraw/Drawing 2025-08-23 11.25.09.excalidraw.md",
     "Excalidraw",
     "HTTP Server Implementation Steps.md",

@@ -1,18 +1,38 @@
 defmodule Mix.Tasks.LoadTest do
-  @connection_count 1000
   use Mix.Task
   require Logger
-  alias PixelCanvas.PixelStore
-  alias PixelCanvas.Pixel
 
-  def run(args) do
-    count = Enum.at(args, 0, "1000") |> String.to_integer()
-    Mix.Task.run("app.start")
-    :timer.sleep(100)
+  def run([]) do
+    host = "localhost"
+    port = "3000"
+    run([host, port])
+  end
+
+  def run([host, port]) do
+    run([host, port, "100"])
+  end
+
+  def run([host, port, count]) do
+    port = String.to_integer(port)
+    count = String.to_integer(count)
+
+    if host == "localhost" do
+      Mix.Task.run("app.start")
+      :timer.sleep(100)
+    end
+
     TestStats.start_link()
 
-    for i <- 1..count do
-      {:ok, conn} = TestConnection.start_link(i)
+    start_connections(host, port, count)
+  end
+
+  def run(args) do
+    IO.puts("Invalid arguments: #{inspect(args)}")
+  end
+
+  defp start_connections(host, port, count, start \\ 1) do
+    for i <- start..(start + count - 1) do
+      {:ok, conn} = TestConnection.start_link(host, port, i)
       conn
     end
   end
