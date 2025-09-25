@@ -1,5 +1,6 @@
 defmodule PixelCanvas.PixelBatcher do
   use GenServer
+  require Logger
   @refresh_rate_ms 17
 
   def start_link(_opts) do
@@ -12,12 +13,18 @@ defmodule PixelCanvas.PixelBatcher do
     {:ok,
      %{
        messages: <<>>,
-       timer: timer
+       timer: timer,
+       last_flush: DateTime.utc_now(),
+       last_interval: 0
      }}
   end
 
   def batch(message) do
     GenServer.cast(__MODULE__, {:batch, message})
+  end
+
+  def log_state() do
+    GenServer.cast(__MODULE__, :log_state)
   end
 
   def handle_info(:flush, state) do
@@ -28,7 +35,21 @@ defmodule PixelCanvas.PixelBatcher do
     Process.cancel_timer(state.timer)
     timer = Process.send_after(self(), :flush, @refresh_rate_ms)
 
-    {:noreply, Map.put(state, :messages, <<>>) |> Map.put(:timer, timer)}
+    last_interval = DateTime.diff(DateTime.utc_now(), state.last_flush, :millisecond)
+
+    {:noreply,
+     %{
+       state
+       | messages: <<>>,
+         timer: timer,
+         last_flush: DateTime.utc_now(),
+         last_interval: last_interval
+     }}
+  end
+
+  def handle_cast(:log_state, state) do
+    Logger.info("PixelBatcher state: #{inspect(state)}")
+    {:noreply, state}
   end
 
   def handle_cast({:batch, message}, state) do

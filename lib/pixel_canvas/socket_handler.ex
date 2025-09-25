@@ -11,7 +11,7 @@ defmodule PixelCanvas.WebSocket.SocketHandler do
         PixelCanvas.PixelBatcher.batch(message)
 
         message
-        |> PixelCanvas.Pixel.parse_many()
+        |> PixelCanvas.Pixel.parse_message()
         |> PixelCanvas.PixelStore.store_pixels()
 
         {:noreply, state}

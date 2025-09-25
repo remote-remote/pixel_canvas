@@ -26,20 +26,37 @@ export class PixCan {
     }
     this.viewport.x = computePos(this.viewport.x, this.viewport.vx)
     this.viewport.y = computePos(this.viewport.y, this.viewport.vy)
+
     this.context.clearRect(0, 0, this.viewport.width * this.viewport.scale, this.viewport.height * this.viewport.scale)
-    const sliced = this.grid.slice(this.viewport.y, this.viewport.y + this.viewport.height).map((row) => {
-      return row.slice(this.viewport.x, this.viewport.x + this.viewport.width)
-    })
-    sliced.forEach((row, y) => row.forEach((color, x) => this.drawPixel(x, y, color)))
+    this.offCanvas.getContext('2d').putImageData(this.img, 0, 0)
+    this.context.drawImage(this.offCanvas, this.viewport.x, this.viewport.y, this.viewport.width, this.viewport.height, 0, 0, this.canvas.width, this.canvas.height)
+
     window.requestAnimationFrame(() => this.loop())
   }
 
   start() {
+    /**
+      * @type {HTMLCanvasElement}
+      */
     const canvas = document.getElementById("pixcan")
+    /**
+      * @type {HTMLSelectElement}
+      */
     const colorSelect = document.getElementById("color-select")
+    /**
+      * @type {HTMLCanvasElement}
+      */
+    this.offCanvas = document.getElementById("off-canvas")
+    this.offCanvas.width = 1024
+    this.offCanvas.height = 1024
 
     this.context = canvas.getContext('2d')
-    this.color = "000"
+    this.context.imageSmoothingEnabled = false
+    this.color = {
+      r: 0,
+      g: 0,
+      b: 0,
+    }
     this.viewport = {
       vx: 0,
       vy: 0,
@@ -49,7 +66,7 @@ export class PixCan {
       height: 256,
       scale: 4
     }
-    this.grid = Array.from({ length: 1024 }, () => Array.from({ length: 1024 }, () => ({ r: 0, g: 0, b: 0, a: 0 })))
+    this.img = new ImageData(1024, 1024)
 
     canvas.addEventListener("mousedown", (event) => {
       this.isDrawing = true
@@ -63,11 +80,16 @@ export class PixCan {
     canvas.addEventListener("mousemove", (event) => {
       if (this.isDrawing) {
         this.pen = {
-          x: event.offsetX / this.viewport.scale + this.viewport.x,
-          y: event.offsetY / this.viewport.scale + this.viewport.y
+          x: Math.floor(event.offsetX / this.viewport.scale + this.viewport.x),
+          y: Math.floor(event.offsetY / this.viewport.scale + this.viewport.y)
         }
         this.sendPoint()
-        this.grid[this.pen.y][this.pen.x] = this.color
+
+        const imgIndex = (this.pen.y * 1024 + this.pen.x) * 4
+        this.img.data[imgIndex] = this.color.r
+        this.img.data[imgIndex + 1] = this.color.g
+        this.img.data[imgIndex + 2] = this.color.b
+        this.img.data[imgIndex + 3] = 255
       }
     })
 
@@ -135,15 +157,14 @@ export class PixCan {
       const messages = await PixCan.parseMessages(e.data)
 
       messages.forEach(message => {
-        this.grid[message.localY][message.localX] = message.color
+        this.img.data[(message.localY * 1024 + message.localX) * 4] = message.color.r
+        this.img.data[(message.localY * 1024 + message.localX) * 4 + 1] = message.color.g
+        this.img.data[(message.localY * 1024 + message.localX) * 4 + 2] = message.color.b
+        this.img.data[(message.localY * 1024 + message.localX) * 4 + 3] = 255
       })
     })
+    this.canvas = canvas
     this.loop()
-  }
-
-  drawPixel(x, y, { r, g, b, a }) {
-    this.context.fillStyle = `rgba(${r}, ${g}, ${b}, ${a / 255})`
-    this.context.fillRect(x * this.viewport.scale, y * this.viewport.scale, this.viewport.scale, this.viewport.scale)
   }
 
   sendPoint() {

@@ -22,6 +22,8 @@ defmodule TestConnection do
         {:ok,
          %{
            socket: socket,
+           host: host,
+           port: port,
            send_rate: :rand.uniform(100) + 10,
            position: position,
            direction: direction,
@@ -39,15 +41,15 @@ defmodule TestConnection do
   end
 
   def handle_continue(:start, state) do
-    initiate_websocket(state.socket)
+    initiate_websocket(state)
     Process.send_after(self(), :send_pixel, round(1000 / state.send_rate))
     {:noreply, state}
   end
 
-  def initiate_websocket(socket) do
-    :gen_tcp.send(socket, """
+  def initiate_websocket(state) do
+    :gen_tcp.send(state.socket, """
     GET /ws HTTP/1.1\r
-    Host: localhost\r
+    Host: #{state.host}\r
     Connection: Upgrade\r
     Upgrade: websocket\r
     Sec-WebSocket-Version: 13\r
@@ -55,7 +57,7 @@ defmodule TestConnection do
     \r
     """)
 
-    case :gen_tcp.recv(socket, 0) do
+    case :gen_tcp.recv(state.socket, 0) do
       {:ok, data} ->
         Logger.info("Websocket upgrade response: #{inspect(data)}")
 
@@ -63,7 +65,7 @@ defmodule TestConnection do
         Logger.info("Didn't get good response: #{inspect(other)}")
     end
 
-    :inet.setopts(socket, active: true)
+    :inet.setopts(state.socket, active: true)
   end
 
   def send_pixel(state) do
@@ -138,7 +140,7 @@ defmodule TestConnection do
                 frame.payload
               end
 
-            _pixels = Pixel.parse_many(payload)
+            _pixels = Pixel.parse_message(payload)
             TestStats.add_messages_received(1)
             # TODO: check if we got the pixels we sent
             Map.put(state, :frame_buffer, [])
