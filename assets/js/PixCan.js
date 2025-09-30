@@ -154,6 +154,7 @@ export class PixCan {
     })
 
     this.ws.addEventListener("message", async (e) => {
+      console.log("Message event", e)
       const messages = await PixCan.parseMessages(e.data)
 
       messages.forEach(message => {
@@ -198,33 +199,50 @@ export class PixCan {
       const low32 = view.getUint32(i + 4, false)
 
       const opcode = (high32 >>> 24) & 0xFF
-      const regionX = (high32 >>> 14) & 0x3FF
-      const regionY = (high32 >>> 4) & 0x3FF
-      const localX = ((high32 & 0xF) << 6) | ((low32 >>> 26) & 0x3F)
-      const localY = (low32 >>> 16) & 0x3FF
-      const color = low32 & 0xFFFF
-
-      // Convert 16-bit color to RGBA (assuming 4-bit per channel RGBA)
-      const r = ((color >>> 12) & 0xF) * 17  // Scale 0-15 to 0-255
-      const g = ((color >>> 8) & 0xF) * 17
-      const b = ((color >>> 4) & 0xF) * 17
-      const a = (color & 0xF) * 17
-
-      messages.push({
-        opcode,
-        regionX,
-        regionY,
-        localX,
-        localY,
-        color: {
-          r,
-          g,
-          b,
-          a
-        }
-      })
+      if (opcode == 1) {
+        messages.push(parsePixelMessage(high32, low32))
+      } else {
+        console.log("Unknown opcode", opcode)
+      }
     }
     return messages
+  }
+}
+
+function parseMetricsMessage(high32, low32) {
+  return {
+    ts: low32,
+    metricId,
+    value
+  }
+}
+
+function parsePixelMessage(high32, low32) {
+  const opcode = (high32 >>> 24) & 0xFF
+  const regionX = (high32 >>> 14) & 0x3FF
+  const regionY = (high32 >>> 4) & 0x3FF
+  const localX = ((high32 & 0xF) << 6) | ((low32 >>> 26) & 0x3F)
+  const localY = (low32 >>> 16) & 0x3FF
+  const color = low32 & 0xFFFF
+
+  // Convert 16-bit color to RGBA (assuming 4-bit per channel RGBA)
+  const r = ((color >>> 12) & 0xF) * 17  // Scale 0-15 to 0-255
+  const g = ((color >>> 8) & 0xF) * 17
+  const b = ((color >>> 4) & 0xF) * 17
+  const a = (color & 0xF) * 17
+
+  return {
+    opcode,
+    regionX,
+    regionY,
+    localX,
+    localY,
+    color: {
+      r,
+      g,
+      b,
+      a
+    }
   }
 }
 

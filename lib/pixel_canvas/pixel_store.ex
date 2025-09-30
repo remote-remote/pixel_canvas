@@ -19,7 +19,7 @@ defmodule PixelCanvas.PixelStore do
     :ets.match(:pixel_store, {{region_x, region_y, :"$1", :"$2"}, :"$3"})
     |> Enum.map(fn [local_x, local_y, color] ->
       %PixelCanvas.Pixel{
-        opcode: 0,
+        opcode: 1,
         region_x: region_x,
         region_y: region_y,
         local_x: local_x,

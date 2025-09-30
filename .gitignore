@@ -21,3 +21,13 @@ pixel_canvas-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+# Devenv
+.devenv*
+devenv.local.nix
+
+# direnv
+.direnv
+
+# pre-commit
+.pre-commit-config.yaml

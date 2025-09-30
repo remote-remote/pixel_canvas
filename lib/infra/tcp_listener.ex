@@ -30,19 +30,30 @@ defmodule Infra.TcpListener do
   end
 
   def accept_loop(listen_socket, http_handler, websocket_handler) do
-    {:ok, client_socket} = :gen_tcp.accept(listen_socket)
-    Logger.info("Accepted socket: #{inspect(client_socket)}")
+    case :gen_tcp.accept(listen_socket) do
+      {:ok, client_socket} ->
+        Infra.Telemetry.record(:tcp_accepted, 1)
+        start = DateTime.utc_now()
 
-    DynamicSupervisor.start_child(
-      Infra.ConnectionSupervisor,
-      {TcpConnection,
-       %{
-         conn: client_socket,
-         http_handler: http_handler,
-         websocket_handler: websocket_handler
-       }}
-    )
+        {:ok, pid} = DynamicSupervisor.start_child(
+          Infra.ConnectionSupervisor,
+          {TcpConnection,
+           %{
+             http_handler: http_handler,
+             websocket_handler: websocket_handler
+           }}
+        )
+        :ok = :gen_tcp.controlling_process(client_socket, pid)
+        GenServer.call(pid, {:set_socket, client_socket})
 
-    accept_loop(listen_socket, http_handler, websocket_handler)
+        time = DateTime.diff(DateTime.utc_now(), start, :millisecond)
+        Infra.Telemetry.record(:tcp_accept_latency, time)
+
+        accept_loop(listen_socket, http_handler, websocket_handler)
+
+      {:error, _reason} ->
+        Infra.Telemetry.record(:tcp_rejected, 1)
+        accept_loop(listen_socket, http_handler, websocket_handler)
+    end
   end
 end

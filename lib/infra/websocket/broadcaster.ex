@@ -31,9 +31,14 @@ defmodule Infra.WebSocket.Broadcaster do
   end
 
   def handle_cast({:broadcast, message}, state) do
+    start_time = :os.system_time(:millisecond)
+
     for {pid, _} <- state do
       send(pid, {:broadcast_message, message})
     end
+
+    end_time = :os.system_time(:millisecond)
+    Infra.Telemetry.record(:ws_broadcast_latency, end_time - start_time)
 
     {:noreply, state}
   end

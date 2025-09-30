@@ -13,7 +13,23 @@ defmodule PixelCanvas.Supervisor do
   def init(:ok) do
     children = [
       {Infra.WebSocket.Broadcaster, []},
+      {Infra.Telemetry,
+       %{
+         tcp_accepted: :counter,
+         tcp_accept_latency: :histogram,
+         tcp_rejected: :counter,
+         ws_fragments_received: :counter,
+         ws_frames_received: :counter,
+         ws_messages_received: :counter,
+         ws_fragment_frames_received: :counter,
+         ws_broadcast_latency: :histogram,
+         ws_outgoing_frame_size: :histogram,
+         ws_messages_sent: :counter,
+         ws_frames_sent: :counter,
+         tcp_connections: :guage
+       }},
       {DynamicSupervisor, name: Infra.ConnectionSupervisor},
+      {Infra.TelemetryMonitor, []},
       {Infra.TcpListener,
        http_handler: {Infra.Http.Router, :route},
        websocket_handler: PixelCanvas.WebSocket.SocketHandler},

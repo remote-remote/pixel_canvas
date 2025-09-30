@@ -12,6 +12,7 @@ defmodule Infra.WebSocket.Connection do
 
   # Client API
   defp handle_frame(%Frame{fin: 1} = frame, state) do
+    Infra.Telemetry.record(:ws_messages_received, 1)
     full_message = state.message_buffer <> frame.payload
     state = Map.put(state, :message_buffer, <<>>)
 
@@ -33,6 +34,8 @@ defmodule Infra.WebSocket.Connection do
   end
 
   defp handle_frame(%Frame{fin: 0} = frame, state) do
+    Infra.Telemetry.record(:ws_fragment_frames_received, 1)
+
     {:ok,
      Map.update!(state, :message_buffer, fn buffer ->
        buffer <> frame.payload
@@ -43,7 +46,11 @@ defmodule Infra.WebSocket.Connection do
     Frame.construct(msg)
     |> Enum.each(fn frame ->
       :gen_tcp.send(socket, frame)
+      Infra.Telemetry.record(:ws_outgoing_frame_size, byte_size(frame))
+      Infra.Telemetry.record(:ws_frames_sent, 1)
     end)
+
+    Infra.Telemetry.record(:ws_messages_sent, 1)
   end
 
   # Server API
