@@ -11,37 +11,6 @@ defmodule Infra.WebSocket.Connection do
   end
 
   # Client API
-  defp handle_frame(%Frame{fin: 1} = frame, state) do
-    Infra.Telemetry.record(:ws_messages_received, 1)
-    full_message = state.message_buffer <> frame.payload
-    state = Map.put(state, :message_buffer, <<>>)
-
-    case apply(state.handler, :handle_message, [full_message, Map.get(state, :state)]) do
-      {:reply, message, new_state} ->
-        send_message(state.socket, message)
-        {:ok, Map.put(state, :state, new_state)}
-
-      {:broadcast, message, new_state} ->
-        Infra.WebSocket.Broadcaster.broadcast(message)
-        {:ok, Map.put(state, :state, new_state)}
-
-      {:noreply, new_state} ->
-        {:ok, Map.put(state, :state, new_state)}
-
-      :ok ->
-        {:ok, state}
-    end
-  end
-
-  defp handle_frame(%Frame{fin: 0} = frame, state) do
-    Infra.Telemetry.record(:ws_fragment_frames_received, 1)
-
-    {:ok,
-     Map.update!(state, :message_buffer, fn buffer ->
-       buffer <> frame.payload
-     end)}
-  end
-
   def send_message(socket, msg) do
     Frame.construct(msg)
     |> Enum.each(fn frame ->
@@ -65,14 +34,8 @@ defmodule Infra.WebSocket.Connection do
   end
 
   def handle_continue(:connected, state) do
-    case apply(state.handler, :handle_connected, [state]) do
-      {:reply, message, new_state} ->
-        send_message(state.socket, message)
-        {:noreply, Map.put(state, :state, new_state)}
-
-      {:noreply, new_state} ->
-        {:noreply, Map.put(state, :state, new_state)}
-    end
+    apply(state.handler, :handle_connected, [state])
+    |> handle_handler_response(state)
   end
 
   def handle_info({:broadcast_message, message}, state) do
@@ -83,5 +46,48 @@ defmodule Infra.WebSocket.Connection do
   def handle_cast({:frame, frame}, state) do
     handle_frame(frame, state)
     {:noreply, state}
+  end
+
+  # Private helpers
+  defp handle_frame(%Frame{fin: 1} = frame, state) do
+    Infra.Telemetry.record(:ws_messages_received, 1)
+    full_message = state.message_buffer <> frame.payload
+    state = Map.put(state, :message_buffer, <<>>)
+
+    apply(state.handler, :handle_message, [full_message, Map.get(state, :state)])
+    |> handle_handler_response(state)
+  end
+
+  defp handle_frame(%Frame{fin: 0} = frame, state) do
+    Infra.Telemetry.record(:ws_fragment_frames_received, 1)
+
+    {:ok,
+     Map.update!(state, :message_buffer, fn buffer ->
+       buffer <> frame.payload
+     end)}
+  end
+
+  defp handle_handler_response(response, state) do
+    case response do
+      {:reply, [_ | _] = messages, new_state} ->
+        for message <- messages do
+          send_message(state.socket, message)
+        end
+
+        {:noreply, Map.put(state, :state, new_state)}
+
+      {:reply, [], new_state} ->
+        {:noreply, Map.put(state, :state, new_state)}
+
+      {:reply, message, new_state} ->
+        send_message(state.socket, message)
+        {:noreply, Map.put(state, :state, new_state)}
+
+      {:noreply, new_state} ->
+        {:noreply, Map.put(state, :state, new_state)}
+
+      :ok ->
+        {:ok, state}
+    end
   end
 end

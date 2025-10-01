@@ -154,7 +154,6 @@ export class PixCan {
     })
 
     this.ws.addEventListener("message", async (e) => {
-      console.log("Message event", e)
       const messages = await PixCan.parseMessages(e.data)
 
       messages.forEach(message => {
@@ -190,22 +189,41 @@ export class PixCan {
   }
 
   static async parseMessages(blob) {
-    const messages = []
+    const pixels = []
     const buffer = await blob.arrayBuffer()
     const view = new DataView(buffer)
 
-    for (let i = 0; i < buffer.byteLength; i += 8) {
-      const high32 = view.getUint32(i, false)
-      const low32 = view.getUint32(i + 4, false)
+    const high = view.getUint32(0, false)
+    const regionX = high >>> 24
+    const regionY = high >>> 14
+    let i = 3
 
-      const opcode = (high32 >>> 24) & 0xFF
-      if (opcode == 1) {
-        messages.push(parsePixelMessage(high32, low32))
-      } else {
-        console.log("Unknown opcode", opcode)
+    while (i < buffer.byteLength) {
+      const userId = view.getUint32(i, false) >>> 12
+      const numPixels = (view.getUint32(i + 2, false) >>> 8) & 0xFFFFF
+      i += 5
+
+      for (let j = 0; j < numPixels; j++, i += 5) {
+        const opcode = view.getUint8(i) >>> 4
+        const localX = view.getUint16(i) >>> 2 & 0x3FF
+        const localY = view.getUint16(i + 1) & 0x3FF
+        const color = view.getUint16(i + 3)
+        const r = ((color >>> 12) & 0xF) * 17  // Scale 0-15 to 0-255
+        const g = ((color >>> 8) & 0xF) * 17
+        const b = ((color >>> 4) & 0xF) * 17
+        const a = (color & 0xF) * 17
+        pixels.push({
+          opcode,
+          localX,
+          localY,
+          color: {
+            r, g, b, a
+          }
+        })
       }
     }
-    return messages
+
+    return pixels
   }
 }
 
@@ -214,35 +232,6 @@ function parseMetricsMessage(high32, low32) {
     ts: low32,
     metricId,
     value
-  }
-}
-
-function parsePixelMessage(high32, low32) {
-  const opcode = (high32 >>> 24) & 0xFF
-  const regionX = (high32 >>> 14) & 0x3FF
-  const regionY = (high32 >>> 4) & 0x3FF
-  const localX = ((high32 & 0xF) << 6) | ((low32 >>> 26) & 0x3F)
-  const localY = (low32 >>> 16) & 0x3FF
-  const color = low32 & 0xFFFF
-
-  // Convert 16-bit color to RGBA (assuming 4-bit per channel RGBA)
-  const r = ((color >>> 12) & 0xF) * 17  // Scale 0-15 to 0-255
-  const g = ((color >>> 8) & 0xF) * 17
-  const b = ((color >>> 4) & 0xF) * 17
-  const a = (color & 0xF) * 17
-
-  return {
-    opcode,
-    regionX,
-    regionY,
-    localX,
-    localY,
-    color: {
-      r,
-      g,
-      b,
-      a
-    }
   }
 }
 

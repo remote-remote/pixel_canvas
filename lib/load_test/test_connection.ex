@@ -72,7 +72,7 @@ defmodule TestConnection do
     payload =
       state
       |> generate_pixel()
-      |> Pixel.encode_one()
+      |> Pixel.encode_client_pixel()
       |> Frame.construct_masked(<<0, 0, 0, 0>>)
 
     :gen_tcp.send(state.socket, payload)
@@ -140,7 +140,7 @@ defmodule TestConnection do
                 frame.payload
               end
 
-            _pixels = Pixel.parse_message(payload)
+            # _pixels = Pixel.parse_new_server_message(payload)
             TestStats.add_messages_received(1)
             # TODO: check if we got the pixels we sent
             Map.put(state, :frame_buffer, [])

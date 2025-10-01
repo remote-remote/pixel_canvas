@@ -16,10 +16,11 @@ defmodule PixelCanvas.PixelStore do
   end
 
   def get_pixels(region_x, region_y) do
-    :ets.match(:pixel_store, {{region_x, region_y, :"$1", :"$2"}, :"$3"})
-    |> Enum.map(fn [local_x, local_y, color] ->
+    :ets.match(:pixel_store, {{region_x, region_y, :"$1", :"$2"}, :"$3", :"$4"})
+    |> Enum.map(fn [local_x, local_y, user_id, color] ->
       %PixelCanvas.Pixel{
         opcode: 1,
+        user_id: user_id,
         region_x: region_x,
         region_y: region_y,
         local_x: local_x,
@@ -37,7 +38,8 @@ defmodule PixelCanvas.PixelStore do
   def handle_cast({:store, pixels}, state) do
     pixels =
       Enum.map(pixels, fn pixel ->
-        {{pixel.region_x, pixel.region_y, pixel.local_x, pixel.local_y}, pixel.color}
+        {{pixel.region_x, pixel.region_y, pixel.local_x, pixel.local_y}, pixel.user_id,
+         pixel.color}
       end)
 
     :ets.insert(:pixel_store, pixels)

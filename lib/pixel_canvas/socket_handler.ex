@@ -8,10 +8,10 @@ defmodule PixelCanvas.WebSocket.SocketHandler do
   def handle_message(message, state) do
     case message do
       <<_::binary-8, _rest::binary>> ->
-        PixelCanvas.PixelBatcher.batch(message)
+        PixelCanvas.PixelBatcher.batch(message, state.user_id)
 
         message
-        |> PixelCanvas.Pixel.parse_message()
+        |> PixelCanvas.Pixel.parse_message(state.user_id)
         |> PixelCanvas.PixelStore.store_pixels()
 
         {:noreply, state}
@@ -23,6 +23,9 @@ defmodule PixelCanvas.WebSocket.SocketHandler do
   end
 
   def handle_connected(state) do
-    {:reply, PixelCanvas.PixelStore.get_pixel_messages(0, 0), state}
+    pixels = PixelCanvas.PixelStore.get_pixel_messages(0, 0)
+    # TODO: figure out how to get a unique user id for each connection
+    user_id = :rand.uniform(1000)
+    {:reply, pixels, Map.put(state, :user_id, user_id)}
   end
 end
