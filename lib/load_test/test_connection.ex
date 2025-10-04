@@ -42,7 +42,7 @@ defmodule TestConnection do
 
   def handle_continue(:start, state) do
     initiate_websocket(state)
-    Process.send_after(self(), :send_pixel, round(1000 / state.send_rate))
+    Process.send_after(self(), :send_pixel, 2000)
     {:noreply, state}
   end
 

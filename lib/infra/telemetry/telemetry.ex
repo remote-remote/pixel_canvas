@@ -15,8 +15,13 @@ defmodule Infra.Telemetry do
   end
 
   def init(metrics) do
-    :ets.new(:telemetry, [:ordered_set, :named_table, :protected])
-    :ets.new(:histogram_buffer, [:duplicate_bag, :named_table, :protected])
+    :ets.new(:telemetry, [:ordered_set, :named_table, :public])
+    :ets.new(:histogram_buffer, [:duplicate_bag, :named_table, :public])
+    :ets.new(:metric_types, [:set, :named_table, :public])
+
+    Enum.each(metrics, fn {metric, type} ->
+      :ets.insert(:metric_types, {metric, type})
+    end)
 
     # TODO: clean these up on shutdown
     flush_timer = :timer.send_interval(@flush_interval, self(), :flush)
@@ -73,18 +78,6 @@ defmodule Infra.Telemetry do
     {:noreply, state}
   end
 
-  def handle_cast({:record, metric, value, ts}, state) do
-    case Map.get(state.metrics, metric) do
-      nil ->
-        Logger.error("Unknown metric: #{metric}")
-
-      metric_type ->
-        record_metric(ts, metric, metric_type, value)
-    end
-
-    {:noreply, state}
-  end
-
   def handle_call(
         {:get_metrics, metric, start_ts, end_ts},
         _from,
@@ -92,12 +85,12 @@ defmodule Infra.Telemetry do
       )
       when is_integer(start_ts) and is_integer(end_ts) do
     metrics =
-      case Map.get(state.metrics, metric) do
-        nil ->
+      case :ets.lookup(:metric_types, metric) do
+        [] ->
           Logger.error("Unknown metric: #{metric}")
           {:reply, [], state}
 
-        metric_type ->
+        [{metric, metric_type}] ->
           value =
             :ets.select(
               :telemetry,
@@ -124,8 +117,15 @@ defmodule Infra.Telemetry do
   end
 
   def record(metric, value) do
-    ts = DateTime.utc_now() |> DateTime.to_unix(:second)
-    GenServer.cast(__MODULE__, {:record, metric, value, ts})
+    ts = :os.system_time(:second)
+
+    case :ets.lookup(:metric_types, metric) do
+      [] ->
+        Logger.error("Unknown metric: #{metric}")
+
+      [{metric, type}] ->
+        record_metric(ts, metric, type, value)
+    end
   end
 
   defp record_metric(bucket, name, :counter, value) do

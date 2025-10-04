@@ -127,7 +127,7 @@ defmodule Infra.TcpConnection do
               handler: state.websocket_handler
             })
 
-          Infra.WebSocket.Broadcaster.register(ws)
+          Infra.WebSocket.Broadcaster.register(ws, state.conn)
 
           state =
             Map.put(state, :protocol, :websocket)

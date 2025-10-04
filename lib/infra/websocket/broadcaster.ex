@@ -9,8 +9,8 @@ defmodule Infra.WebSocket.Broadcaster do
     {:ok, state}
   end
 
-  def register(pid) do
-    GenServer.call(__MODULE__, {:register, pid})
+  def register(pid, socket) do
+    GenServer.call(__MODULE__, {:register, pid, socket})
   end
 
   def unregister(pid) do
@@ -21,9 +21,9 @@ defmodule Infra.WebSocket.Broadcaster do
     GenServer.cast(__MODULE__, {:broadcast, message, type})
   end
 
-  def handle_call({:register, pid}, _from, state) do
+  def handle_call({:register, pid, socket}, _from, state) do
     Process.monitor(pid)
-    {:reply, :ok, Map.put(state, pid, pid)}
+    {:reply, :ok, Map.put(state, pid, socket)}
   end
 
   def handle_call({:unregister, pid}, _from, state) do
@@ -32,9 +32,17 @@ defmodule Infra.WebSocket.Broadcaster do
 
   def handle_cast({:broadcast, message, type}, state) do
     start_time = :os.system_time(:millisecond)
+    frames = Infra.WebSocket.Frame.construct(message, type)
 
-    for {pid, _} <- state do
-      send(pid, {:broadcast_message, message, type})
+    Infra.Telemetry.record(:ws_messages_sent, 1)
+
+    for {_pid, socket} <- state do
+      frames
+      |> Enum.each(fn frame ->
+        :gen_tcp.send(socket, frame)
+        Infra.Telemetry.record(:ws_outgoing_frame_size, byte_size(frame))
+        Infra.Telemetry.record(:ws_frames_sent, 1)
+      end)
     end
 
     end_time = :os.system_time(:millisecond)
