@@ -1,5 +1,6 @@
 defmodule Infra.Telemetry do
-  @ttl 60_000 * 60
+  # 5 minutes
+  @ttl 60_000 * 5
   @flush_interval 1000
   @bucket_size 1_000
 
@@ -73,18 +74,53 @@ defmodule Infra.Telemetry do
   end
 
   def handle_cast({:record, metric, value, ts}, state) do
-    metric_type = Map.get(state.metrics, metric, [])
-    record_metric(ts, metric, metric_type, value)
+    case Map.get(state.metrics, metric) do
+      nil ->
+        Logger.error("Unknown metric: #{metric}")
+
+      metric_type ->
+        record_metric(ts, metric, metric_type, value)
+    end
+
     {:noreply, state}
   end
 
-  def handle_call({:get_metrics, metric}, _from, state) do
-    metrics = :ets.match(:telemetry, {{:"$1", metric}, :"$2"})
+  def handle_call(
+        {:get_metrics, metric, start_ts, end_ts},
+        _from,
+        state
+      )
+      when is_integer(start_ts) and is_integer(end_ts) do
+    metrics =
+      case Map.get(state.metrics, metric) do
+        nil ->
+          Logger.error("Unknown metric: #{metric}")
+          {:reply, [], state}
+
+        metric_type ->
+          value =
+            :ets.select(
+              :telemetry,
+              [
+                {
+                  {{:"$1", :"$2"}, :"$3"},
+                  [{:>=, :"$1", start_ts}, {:<, :"$1", end_ts}, {:==, :"$2", metric}],
+                  [[:"$1", :"$3"]]
+                }
+              ]
+            )
+
+          {metric_type, value}
+      end
+
     {:reply, metrics, state}
   end
 
-  def get_metrics(metric) do
-    GenServer.call(__MODULE__, {:get_metrics, metric})
+  def get_metrics(metric, start_ts, end_ts) do
+    GenServer.call(
+      __MODULE__,
+      {:get_metrics, metric, start_ts, end_ts}
+    )
   end
 
   def record(metric, value) do

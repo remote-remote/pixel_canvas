@@ -34,7 +34,8 @@ defmodule PixelCanvas.Supervisor do
        http_handler: {Infra.Http.Router, :route},
        websocket_handler: PixelCanvas.WebSocket.SocketHandler},
       {PixelCanvas.PixelBatcher, []},
-      {PixelCanvas.PixelStore, []}
+      {PixelCanvas.PixelStore, []},
+      {Infra.TelemetryReporter, []}
     ]
 
     # So the default strategy is :one_for_one, which we can override in each child spec

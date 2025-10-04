@@ -24,7 +24,7 @@ defmodule Infra.TcpListener do
     Logger.info("Starting Listener")
 
     {:ok, socket} =
-      :gen_tcp.listen(port, [:binary, active: false, packet: :raw, reuseaddr: true])
+      :gen_tcp.listen(port, [:binary, active: false, packet: :raw, reuseaddr: true, backlog: 4096])
 
     accept_loop(socket, opts[:http_handler], opts[:websocket_handler])
   end
@@ -35,14 +35,16 @@ defmodule Infra.TcpListener do
         Infra.Telemetry.record(:tcp_accepted, 1)
         start = DateTime.utc_now()
 
-        {:ok, pid} = DynamicSupervisor.start_child(
-          Infra.ConnectionSupervisor,
-          {TcpConnection,
-           %{
-             http_handler: http_handler,
-             websocket_handler: websocket_handler
-           }}
-        )
+        {:ok, pid} =
+          DynamicSupervisor.start_child(
+            Infra.ConnectionSupervisor,
+            {TcpConnection,
+             %{
+               http_handler: http_handler,
+               websocket_handler: websocket_handler
+             }}
+          )
+
         :ok = :gen_tcp.controlling_process(client_socket, pid)
         GenServer.call(pid, {:set_socket, client_socket})
 

@@ -4,7 +4,7 @@ defmodule Infra.WebSocket.Frame do
 
   # opcodes
   # @cont 0
-  # @text 1
+  @text 1
   @binary 2
 
   defstruct [:fin, :rsv, :opcode, :mask, :masking_key, :payload_len, :payload]
@@ -49,26 +49,32 @@ defmodule Infra.WebSocket.Frame do
     |> Enum.reverse()
   end
 
-  def construct(message, frames \\ []) do
+  def construct(message, type \\ :binary, frames \\ []) do
     size = byte_size(message)
+
+    opcode =
+      case type do
+        :binary -> @binary
+        :text -> @text
+      end
 
     cond do
       size < 126 ->
         [
-          <<1::1, 0::3, @binary::4, 0::1, size::integer-7, message::binary-size(size)>>
+          <<1::1, 0::3, opcode::4, 0::1, size::integer-7, message::binary-size(size)>>
           | frames
         ]
 
       size < Integer.pow(2, 16) ->
         [
-          <<1::1, 0::3, @binary::4, 0::1, 126::integer-7, size::unsigned-16,
+          <<1::1, 0::3, opcode::4, 0::1, 126::integer-7, size::unsigned-16,
             message::binary-size(size)>>
           | frames
         ]
 
       size < Integer.pow(2, 64) ->
         [
-          <<1::1, 0::3, @binary::4, 0::1, 127::integer-7, size::unsigned-64,
+          <<1::1, 0::3, opcode::4, 0::1, 127::integer-7, size::unsigned-64,
             message::binary-size(size)>>
           | frames
         ]
@@ -78,8 +84,8 @@ defmodule Infra.WebSocket.Frame do
         <<size::unsigned-64>> = <<255, 255, 255, 255, 255, 255, 255, 255>>
         <<chunk::binary-size(size), rest::binary>> = message
 
-        construct(rest, [
-          <<0::1, 0::3, @binary::4, 0::1, 127::integer-7>> <> <<size::unsigned-64>> <> chunk
+        construct(rest, opcode, [
+          <<0::1, 0::3, opcode::4, 0::1, 127::integer-7>> <> <<size::unsigned-64>> <> chunk
           | frames
         ])
     end
@@ -124,9 +130,6 @@ defmodule Infra.WebSocket.Frame do
          payload: payload
        }, rest}
     else
-      {0, :mask} ->
-        {:error, :nomask}
-
       _ ->
         :fragment
     end

@@ -32,7 +32,7 @@ defmodule PixelCanvas.PixelStore do
 
   def get_pixel_messages(region_x, region_y) do
     get_pixels(region_x, region_y)
-    |> PixelCanvas.Pixel.encode_many()
+    |> PixelCanvas.Pixel.encode_server_pixels()
   end
 
   def handle_cast({:store, pixels}, state) do

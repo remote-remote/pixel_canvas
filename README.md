@@ -113,8 +113,8 @@ These are apples to oranges, because the old implementation didn't have user ids
 ##### 1000 users, 10 pixels each 
 This is very fast drawing! We're unlikely to have to send this many pixels in a single message.
 
-**Old** - 8mb
+**Old** - 80kb
 **New** - ~5.5kb (1000 55-byte blocks + 5 byte header)
 
 ### Proposed Client -> Server Messages
-These can be much less efficient. 
+These can be much less efficient. The server can keep track of the user id.

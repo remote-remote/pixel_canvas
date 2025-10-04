@@ -17,8 +17,8 @@ defmodule Infra.WebSocket.Broadcaster do
     GenServer.call(__MODULE__, {:unregister, pid})
   end
 
-  def broadcast(message) do
-    GenServer.cast(__MODULE__, {:broadcast, message})
+  def broadcast(message, type \\ :binary) do
+    GenServer.cast(__MODULE__, {:broadcast, message, type})
   end
 
   def handle_call({:register, pid}, _from, state) do
@@ -30,11 +30,11 @@ defmodule Infra.WebSocket.Broadcaster do
     {:reply, :ok, Map.delete(state, pid)}
   end
 
-  def handle_cast({:broadcast, message}, state) do
+  def handle_cast({:broadcast, message, type}, state) do
     start_time = :os.system_time(:millisecond)
 
     for {pid, _} <- state do
-      send(pid, {:broadcast_message, message})
+      send(pid, {:broadcast_message, message, type})
     end
 
     end_time = :os.system_time(:millisecond)
@@ -44,6 +44,7 @@ defmodule Infra.WebSocket.Broadcaster do
   end
 
   def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
+    IO.puts("Down")
     {:noreply, Map.delete(state, pid)}
   end
 end

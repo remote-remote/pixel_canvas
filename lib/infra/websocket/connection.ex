@@ -11,8 +11,8 @@ defmodule Infra.WebSocket.Connection do
   end
 
   # Client API
-  def send_message(socket, msg) do
-    Frame.construct(msg)
+  def send_message(socket, msg, type \\ :binary) do
+    Frame.construct(msg, type)
     |> Enum.each(fn frame ->
       :gen_tcp.send(socket, frame)
       Infra.Telemetry.record(:ws_outgoing_frame_size, byte_size(frame))
@@ -40,6 +40,11 @@ defmodule Infra.WebSocket.Connection do
 
   def handle_info({:broadcast_message, message}, state) do
     send_message(state.socket, message)
+    {:noreply, state}
+  end
+
+  def handle_info({:broadcast_message, message, type}, state) do
+    send_message(state.socket, message, type)
     {:noreply, state}
   end
 

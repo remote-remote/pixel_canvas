@@ -31,6 +31,7 @@ export class PixCan {
     this.offCanvas.getContext('2d').putImageData(this.img, 0, 0)
     this.context.drawImage(this.offCanvas, this.viewport.x, this.viewport.y, this.viewport.width, this.viewport.height, 0, 0, this.canvas.width, this.canvas.height)
 
+
     window.requestAnimationFrame(() => this.loop())
   }
 
@@ -154,17 +155,88 @@ export class PixCan {
     })
 
     this.ws.addEventListener("message", async (e) => {
-      const messages = await PixCan.parseMessages(e.data)
-
-      messages.forEach(message => {
-        this.img.data[(message.localY * 1024 + message.localX) * 4] = message.color.r
-        this.img.data[(message.localY * 1024 + message.localX) * 4 + 1] = message.color.g
-        this.img.data[(message.localY * 1024 + message.localX) * 4 + 2] = message.color.b
-        this.img.data[(message.localY * 1024 + message.localX) * 4 + 3] = 255
-      })
+      const message = await PixCan.parseMessage(e.data)
+      switch (message.type) {
+        case 'pixel':
+          this.handlePixelMessage(message)
+          break
+        case 'hello':
+          this.userId = message.userId
+          break
+        case 'metrics':
+          this.handleMetricsMessage(message)
+          break
+        default:
+          console.log("Unknown message type", message.type)
+          break
+      }
     })
+
     this.canvas = canvas
+    this.metrics = {}
+    this.metricsDiv = document.getElementById("metrics")
     this.loop()
+
+    setInterval(() => {
+      this.setMetrics()
+    }, 1000)
+  }
+
+  setMetrics() {
+    for (const [name, { type, values }] of Object.entries(this.metrics)) {
+      if (type == "histogram") {
+        document.getElementById(`${name}-min`).innerText = values[0]?.value.min
+        document.getElementById(`${name}-max`).innerText = values[0]?.value.max
+        document.getElementById(`${name}-sum`).innerText = values[0]?.value.sum
+        document.getElementById(`${name}-count`).innerText = values[0]?.value.count
+      } else {
+        document.getElementById(name).innerText = values[0]?.value || 0
+      }
+    }
+  }
+
+  handleMetricsMessage(message) {
+    console.log("Metrics", this.metrics)
+    if (!this.metrics[message.name]) {
+      const div = document.createElement("div")
+      const title = document.createElement("h3")
+      title.innerText = message.name
+      const value = document.createElement("div")
+
+      value.setAttribute("id", message.name)
+      if (message.metricType === "histogram") {
+        const min = document.createElement("div")
+        const minValue = document.createElement("span")
+        minValue.setAttribute("id", `${message.name}-min`)
+        const max = document.createElement("div")
+        const maxValue = document.createElement("span")
+        maxValue.setAttribute("id", `${message.name}-max`)
+        const sum = document.createElement("div")
+        const sumValue = document.createElement("span")
+        sumValue.setAttribute("id", `${message.name}-sum`)
+        const count = document.createElement("div")
+        const countValue = document.createElement("span")
+        countValue.setAttribute("id", `${message.name}-count`)
+
+        min.appendChild(minValue)
+        max.appendChild(maxValue)
+        sum.appendChild(sumValue)
+        count.appendChild(countValue)
+
+        value.appendChild(min)
+        value.appendChild(max)
+        value.appendChild(sum)
+        value.appendChild(count)
+      }
+      div.appendChild(title)
+      div.appendChild(value)
+      this.metricsDiv.appendChild(div)
+    }
+
+    this.metrics[message.name] = {
+      type: message.metricType,
+      values: message.timeseries
+    }
   }
 
   sendPoint() {
@@ -188,50 +260,82 @@ export class PixCan {
     this.ws.send(buffer)
   }
 
-  static async parseMessages(blob) {
-    const pixels = []
-    const buffer = await blob.arrayBuffer()
-    const view = new DataView(buffer)
+  static async parseMessage(data) {
+    if (data instanceof Blob) {
+      const buffer = await data.arrayBuffer()
+      const view = new DataView(buffer)
 
-    const high = view.getUint32(0, false)
-    const regionX = high >>> 24
-    const regionY = high >>> 14
-    let i = 3
+      const high = view.getUint32(0, false)
+      const messageType = high >>> 28
 
-    while (i < buffer.byteLength) {
-      const userId = view.getUint32(i, false) >>> 12
-      const numPixels = (view.getUint32(i + 2, false) >>> 8) & 0xFFFFF
-      i += 5
-
-      for (let j = 0; j < numPixels; j++, i += 5) {
-        const opcode = view.getUint8(i) >>> 4
-        const localX = view.getUint16(i) >>> 2 & 0x3FF
-        const localY = view.getUint16(i + 1) & 0x3FF
-        const color = view.getUint16(i + 3)
-        const r = ((color >>> 12) & 0xF) * 17  // Scale 0-15 to 0-255
-        const g = ((color >>> 8) & 0xF) * 17
-        const b = ((color >>> 4) & 0xF) * 17
-        const a = (color & 0xF) * 17
-        pixels.push({
-          opcode,
-          localX,
-          localY,
-          color: {
-            r, g, b, a
+      switch (messageType) {
+        case 0:
+          return parsePixelMessage(view, buffer.byteLength)
+        case 1:
+          return {
+            type: 'hello',
+            userId: view.getUint32(0, false) >>> 8 & 0xFFFFF
           }
-        })
+        case 2:
+          return {
+            type: 'metrics',
+            ts: view.getUint32(0, false),
+            metricId: view.getUint32(4, false),
+            value: view.getUint32(8, false)
+          }
       }
+    } else {
+      return JSON.parse(data)
     }
+  }
 
-    return pixels
+  handlePixelMessage(message) {
+    message.pixels.forEach(pixel => {
+      this.img.data[(pixel.localY * 1024 + pixel.localX) * 4] = pixel.color.r
+      this.img.data[(pixel.localY * 1024 + pixel.localX) * 4 + 1] = pixel.color.g
+      this.img.data[(pixel.localY * 1024 + pixel.localX) * 4 + 2] = pixel.color.b
+      this.img.data[(pixel.localY * 1024 + pixel.localX) * 4 + 3] = 255
+    })
   }
 }
 
-function parseMetricsMessage(high32, low32) {
+
+function parsePixelMessage(view, length) {
+  const pixels = []
+  const bytes = view.getUint32(0, false)
+  const regionX = bytes >>> 22 & 0x3FF
+  const regionY = bytes >>> 12 & 0x3FF
+  let i = 3
+
+  while (i < length) {
+    const userId = view.getUint32(i, false) >>> 12
+    const numPixels = (view.getUint32(i + 2, false) >>> 8) & 0xFFFFF
+    i += 5
+
+    for (let j = 0; j < numPixels; j++, i += 5) {
+      const opcode = view.getUint8(i) >>> 4
+      const localX = view.getUint16(i) >>> 2 & 0x3FF
+      const localY = view.getUint16(i + 1) & 0x3FF
+      const color = view.getUint16(i + 3)
+      const r = ((color >>> 12) & 0xF) * 17  // Scale 0-15 to 0-255
+      const g = ((color >>> 8) & 0xF) * 17
+      const b = ((color >>> 4) & 0xF) * 17
+      const a = (color & 0xF) * 17
+      pixels.push({
+        userId,
+        opcode,
+        localX,
+        localY,
+        color: {
+          r, g, b, a
+        }
+      })
+    }
+  }
+
   return {
-    ts: low32,
-    metricId,
-    value
+    type: 'pixel',
+    pixels
   }
 }
 

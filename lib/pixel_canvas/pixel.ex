@@ -1,7 +1,8 @@
 defmodule PixelCanvas.Pixel do
+  @pixel 0
   defstruct [:user_id, :region_x, :region_y, :local_x, :local_y, :opcode, :color]
 
-  def parse_message(message, user_id) do
+  def parse_client_message(message, user_id) do
     for <<opcode::8, region_x::integer-10, region_y::integer-10, local_x::integer-10,
           local_y::integer-10, color::binary-2 <- message>> do
       %PixelCanvas.Pixel{
@@ -16,7 +17,7 @@ defmodule PixelCanvas.Pixel do
     end
   end
 
-  def parse_new_server_message(message) do
+  def parse_server_message(<<@pixel::integer-4, message::binary>>) do
     <<region_x::integer-10, region_y::integer-10, blocks::binary>> =
       message
 
@@ -66,7 +67,7 @@ defmodule PixelCanvas.Pixel do
       pixel.local_x::integer-10, pixel.local_y::integer-10, pixel.color::binary-2>>
   end
 
-  def encode_many(pixels) do
+  def encode_server_pixels(pixels) do
     pixels
     |> Enum.group_by(fn pixel -> {pixel.region_x, pixel.region_y} end)
     |> Enum.map(fn {{region_x, region_y}, pixels} ->
@@ -86,7 +87,7 @@ defmodule PixelCanvas.Pixel do
         end)
         |> Enum.join()
 
-      <<region_x::integer-12, region_y::integer-12, region_blocks::binary>>
+      <<@pixel::integer-4, region_x::integer-10, region_y::integer-10, region_blocks::binary>>
     end)
   end
 end
