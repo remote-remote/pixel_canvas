@@ -32,7 +32,7 @@ defmodule Mix.Tasks.LoadTest do
 
   defp start_connections(host, port, count, start \\ 1) do
     for i <- start..(start + count - 1) do
-      :timer.sleep(10)
+      :timer.sleep(1000)
       {:ok, conn} = TestConnection.start_link(host, port, i)
       conn
     end

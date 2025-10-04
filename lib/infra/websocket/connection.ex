@@ -50,10 +50,16 @@ defmodule Infra.WebSocket.Connection do
 
   def handle_cast({:frame, frame}, state) do
     handle_frame(frame, state)
-    {:noreply, state}
   end
 
   # Private helpers
+  defp handle_frame(%Frame{fin: 1} = frame, %{message_buffer: <<>>} = state) do
+    Infra.Telemetry.record(:ws_messages_received, 1)
+
+    apply(state.handler, :handle_message, [frame.payload, Map.get(state, :state)])
+    |> handle_handler_response(state)
+  end
+
   defp handle_frame(%Frame{fin: 1} = frame, state) do
     Infra.Telemetry.record(:ws_messages_received, 1)
     full_message = state.message_buffer <> frame.payload
@@ -66,7 +72,7 @@ defmodule Infra.WebSocket.Connection do
   defp handle_frame(%Frame{fin: 0} = frame, state) do
     Infra.Telemetry.record(:ws_fragment_frames_received, 1)
 
-    {:ok,
+    {:noreply,
      Map.update!(state, :message_buffer, fn buffer ->
        buffer <> frame.payload
      end)}
@@ -92,7 +98,7 @@ defmodule Infra.WebSocket.Connection do
         {:noreply, Map.put(state, :state, new_state)}
 
       :ok ->
-        {:ok, state}
+        {:noreply, state}
     end
   end
 end

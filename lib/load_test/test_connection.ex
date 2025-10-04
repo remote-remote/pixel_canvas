@@ -24,7 +24,7 @@ defmodule TestConnection do
            socket: socket,
            host: host,
            port: port,
-           send_rate: :rand.uniform(100) + 10,
+           send_rate: :rand.uniform(50) + 10,
            position: position,
            direction: direction,
            color: color,

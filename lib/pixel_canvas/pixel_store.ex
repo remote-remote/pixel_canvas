@@ -2,6 +2,8 @@ defmodule PixelCanvas.PixelStore do
   use GenServer
   require Logger
 
+  # TODO: this doesn't need to be a GenServer, it's just an ets table.
+
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
   end
@@ -36,12 +38,6 @@ defmodule PixelCanvas.PixelStore do
   end
 
   def handle_cast({:store, pixels}, state) do
-    pixels =
-      Enum.map(pixels, fn pixel ->
-        {{pixel.region_x, pixel.region_y, pixel.local_x, pixel.local_y}, pixel.user_id,
-         pixel.color}
-      end)
-
     :ets.insert(:pixel_store, pixels)
 
     {:noreply, state}

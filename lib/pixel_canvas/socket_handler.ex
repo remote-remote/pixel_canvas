@@ -5,10 +5,17 @@ defmodule PixelCanvas.WebSocket.SocketHandler do
     defstruct [:region_x, :region_y, :local_x, :local_y, :opcode, :color]
   end
 
+  def client_message_to_pixel_store(message, user_id) do
+    for <<_opcode::8, region_x::integer-10, region_y::integer-10, local_x::integer-10,
+          local_y::integer-10, color::binary-2 <- message>> do
+      {{region_x, region_y, local_x, local_y}, user_id, color}
+    end
+  end
+
   def handle_message(message, state) do
     case message do
       <<_::binary-8, _rest::binary>> ->
-        pixels = PixelCanvas.Pixel.parse_client_message(message, state.user_id)
+        pixels = client_message_to_pixel_store(message, state.user_id)
         PixelCanvas.PixelBatcher.batch(pixels)
         PixelCanvas.PixelStore.store_pixels(pixels)
 
