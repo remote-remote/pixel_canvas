@@ -185,10 +185,10 @@ export class PixCan {
   setMetrics() {
     for (const [name, { type, values }] of Object.entries(this.metrics)) {
       if (type == "histogram") {
-        document.getElementById(`${name}-min`).innerText = values[0]?.value.min
-        document.getElementById(`${name}-max`).innerText = values[0]?.value.max
-        document.getElementById(`${name}-sum`).innerText = values[0]?.value.sum
-        document.getElementById(`${name}-count`).innerText = values[0]?.value.count
+        document.getElementById(`${name}-min`).innerText = `Min: ${values[0]?.value.min}`
+        document.getElementById(`${name}-max`).innerText = `Max: ${values[0]?.value.max}`
+        document.getElementById(`${name}-sum`).innerText = `Sum: ${values[0]?.value.sum}`
+        document.getElementById(`${name}-count`).innerText = `Count: ${values[0]?.value.count}`
       } else {
         document.getElementById(name).innerText = values[0]?.value || 0
       }

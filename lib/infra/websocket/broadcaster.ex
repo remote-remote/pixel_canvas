@@ -34,9 +34,9 @@ defmodule Infra.WebSocket.Broadcaster do
     start_time = :os.system_time(:millisecond)
     frames = Infra.WebSocket.Frame.construct(message, type)
 
-    Infra.Telemetry.record(:ws_messages_sent, 1)
-
     for {_pid, socket} <- state do
+      Infra.Telemetry.record(:ws_messages_sent, 1)
+
       frames
       |> Enum.each(fn frame ->
         :gen_tcp.send(socket, frame)
@@ -52,7 +52,13 @@ defmodule Infra.WebSocket.Broadcaster do
   end
 
   def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
-    IO.puts("Down")
+    # socket = Map.get(state, pid)
+    # if socket, do: :gen_tcp.close(socket)
     {:noreply, Map.delete(state, pid)}
+  end
+
+  def handle_info(info, state) do
+    IO.puts("Info: #{inspect(info)}")
+    {:noreply, state}
   end
 end

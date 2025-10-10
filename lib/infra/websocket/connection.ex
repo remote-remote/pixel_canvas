@@ -5,12 +5,12 @@ defmodule Infra.WebSocket.Connection do
 
   defstruct [:socket, :message_buffer, :state, :handler]
 
+  # Client API
   def start_link(%{socket: _, handler: _} = state, opts \\ []) do
     Logger.info("Starting websocket connection")
     GenServer.start_link(__MODULE__, state, opts)
   end
 
-  # Client API
   def send_message(socket, msg, type \\ :binary) do
     Frame.construct(msg, type)
     |> Enum.each(fn frame ->

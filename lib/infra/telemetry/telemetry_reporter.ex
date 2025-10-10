@@ -19,7 +19,13 @@ defmodule Infra.TelemetryReporter do
   def handle_info(:broadcast_metrics, state) do
     next_query = :os.system_time(:second)
 
-    [:ws_messages_received, :ws_frames_received, :tcp_connections, :ws_outgoing_frame_size]
+    [
+      :tcp_connections,
+      :ws_messages_received,
+      :ws_messages_sent,
+      :ws_outgoing_frame_size,
+      :ws_broadcast_latency
+    ]
     |> Enum.map(fn metric ->
       Telemetry.get_metrics(metric, state.last_query, next_query)
       |> build_message(metric)

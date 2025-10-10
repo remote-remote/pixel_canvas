@@ -57,6 +57,7 @@ defmodule Infra.TcpConnection do
   def handle_info({:tcp_closed, _socket}, state) do
     Logger.debug("Closing connection")
     :gen_tcp.close(state.conn)
+    if state.websocket_connection, do: GenServer.stop(state.websocket_connection, :normal)
     {:stop, :normal, state}
   end
 

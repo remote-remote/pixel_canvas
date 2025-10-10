@@ -28,43 +28,54 @@ defmodule PixelCanvas.PixelBatcher do
   end
 
   def handle_info(:flush, state) do
-    new_active = state.inactive
-    old_active = state.active
+    broadcaster_info =
+      Process.whereis(Infra.WebSocket.Broadcaster)
+      |> Process.info()
 
-    :persistent_term.put(:active_buffer, new_active)
+    cond do
+      broadcaster_info[:message_queue_len] < 1000 ->
+        new_active = state.inactive
+        old_active = state.active
 
-    pixels = :ets.tab2list(old_active)
-    :ets.delete_all_objects(old_active)
+        :persistent_term.put(:active_buffer, new_active)
 
-    if length(pixels) > 0 do
-      pixels
-      # TODO: we can skip this step to pixel structs and convert the storage format
-      # to the binary client format
-      |> Enum.map(fn {{region_x, region_y, local_x, local_y}, user_id, color} ->
-        %Pixel{
-          region_x: region_x,
-          region_y: region_y,
-          local_x: local_x,
-          local_y: local_y,
-          color: color,
-          user_id: user_id,
-          opcode: 1
-        }
-      end)
-      |> Pixel.encode_server_pixels()
-      |> Enum.each(fn message ->
-        Infra.WebSocket.Broadcaster.broadcast(message)
-      end)
+        pixels = :ets.tab2list(old_active)
+        :ets.delete_all_objects(old_active)
+
+        if length(pixels) > 0 do
+          pixels
+          # TODO: we can skip this step to pixel structs and convert the storage format
+          # to the binary client format
+          |> Enum.map(fn {{region_x, region_y, local_x, local_y}, user_id, color} ->
+            %Pixel{
+              region_x: region_x,
+              region_y: region_y,
+              local_x: local_x,
+              local_y: local_y,
+              color: color,
+              user_id: user_id,
+              opcode: 1
+            }
+          end)
+          |> Pixel.encode_server_pixels()
+          |> Enum.each(fn message ->
+            Infra.WebSocket.Broadcaster.broadcast(message)
+          end)
+        end
+
+        timer = Process.send_after(self(), :flush, @refresh_rate_ms)
+
+        {:noreply,
+         %{
+           state
+           | active: new_active,
+             inactive: old_active,
+             timer: timer
+         }}
+
+      true ->
+        timer = Process.send_after(self(), :flush, @refresh_rate_ms)
+        {:noreply, %{state | timer: timer}}
     end
-
-    timer = Process.send_after(self(), :flush, @refresh_rate_ms)
-
-    {:noreply,
-     %{
-       state
-       | active: new_active,
-         inactive: old_active,
-         timer: timer
-     }}
   end
 end
