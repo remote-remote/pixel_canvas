@@ -1,6 +1,6 @@
 defmodule Infra.Telemetry do
   # 5 minutes
-  @ttl 60_000 * 5
+  @ttl 60_000
   @flush_interval 1000
   @bucket_size 1_000
 
